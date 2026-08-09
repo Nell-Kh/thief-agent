@@ -21,6 +21,7 @@ from typing import Any
 from ..constants import ROLES
 from .config_io import ConfigError, read_json, read_toml, sha256_of
 from .contract import build_contract
+from .interop_profile import InteropProfile, resolve
 from .schema import GameContract
 from .version import check_config_version, check_schema_version
 
@@ -74,6 +75,20 @@ class ConfigManager:
     def contract(self) -> GameContract:
         """The typed, signed game contract - the only source of game physics."""
         return self._contract
+
+    @property
+    def interop(self) -> InteropProfile:
+        """The dialect this peer speaks, from the private ``[interop]`` section.
+
+        Private rather than signed on purpose: it is not an Appendix B field, so
+        putting it in the shared contract would change the hash every correct
+        peer computes. It is declared beside the terms at the handshake instead,
+        where a disagreement refuses (:mod:`shared.interop_profile`).
+        """
+        return resolve(
+            self.private_value("interop", "profile"),
+            self.private_value("interop", "tie_award"),
+        )
 
     @property
     def raw_contract(self) -> dict[str, Any]:

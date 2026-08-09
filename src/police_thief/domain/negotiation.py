@@ -80,8 +80,34 @@ def validate_terms(
     if not nonce or sign_terms(theirs["terms"], nonce) != signature:
         raise TermsRejectedError("terms signature does not verify")
     _check_models(theirs, our_extras)
+    _check_dialect(theirs, our_extras)
     _check_pairing(theirs, our_extras, expect_role)
     return theirs
+
+
+def _check_dialect(theirs: dict[str, Any], ours: dict[str, Any]) -> None:
+    """Refuse a stated disagreement about which reading of the book we speak.
+
+    Deliberately stricter than :func:`_check_models`, which tolerates silence.
+    A locked-model family that one side omits is a peer that simply never
+    published a hash; a dialect difference is four byte-level forks - the commit
+    seal, the scent clamp, the settlement form, the terms shape - each of which
+    fails the mutual audit in BOTH directions and zeroes both teams under rules
+    #19/#35. Refusing a stated difference converts that into a question with an
+    answer, so it is still tolerant of silence (an unmodified reference peer
+    declares nothing) but never of contradiction.
+    """
+    for field, label in (
+        ("interop_profile", "interop dialect"),
+        ("tie_award", "tie-award semantics"),
+    ):
+        their_value, our_value = theirs.get(field), ours.get(field)
+        if isinstance(their_value, str) and their_value and their_value != our_value:
+            raise TermsRejectedError(
+                f"{label} mismatch: we speak {our_value!r}, they declare "
+                f"{their_value!r}. Agree one before playing - every step of the "
+                f"audit depends on it (see [interop] in the per-peer TOML)."
+            )
 
 
 def _check_models(theirs: dict[str, Any], ours: dict[str, Any]) -> None:

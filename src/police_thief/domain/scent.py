@@ -19,6 +19,7 @@ produce that canonical lock (rulebook ch. 4.5).
 from __future__ import annotations
 
 from ..shared.config_io import sha256_of
+from ..shared.interop_profile import DEFAULT, InteropProfile
 from ..shared.schema import PheromoneConfig
 from .board import Cell
 
@@ -63,10 +64,16 @@ def emission_delta(config: PheromoneConfig, source: Cell, cell: Cell) -> float:
 class ScentField:
     """One agent's scent field, as its opponent perceives it."""
 
-    def __init__(self, board_size: int, config: PheromoneConfig) -> None:
+    def __init__(
+        self,
+        board_size: int,
+        config: PheromoneConfig,
+        profile: InteropProfile = DEFAULT,
+    ) -> None:
         """Create an empty field over a ``board_size`` x ``board_size`` grid."""
         self._size = board_size
         self._config = config
+        self._profile = profile
         self._tau: dict[Cell, float] = {}
 
     @property
@@ -81,21 +88,29 @@ class ScentField:
     def advance(self, agent_cell: Cell) -> None:
         """Apply one full turn: decay every trace, then add this turn's emission.
 
-        This is the verbatim update rule applied to every cell at once. The
-        result is clamped into the printed range [0, center]: the ``max(0, .)``
-        clamp is explicit in the formula, and the upper bound follows from the
-        book's stated range for tau and its re-emission figure, which holds at
-        0.9 while the agent stays present.
+        The lower clamp is explicit in the book's formula. The UPPER clamp is a
+        dialect: the book prints ``max(0, ...)`` and nothing else, while the
+        kit's registered ``multiplicative_book_v1`` bounds tau at
+        ``emit_intensity`` - a reading the book's own re-emission figure
+        supports, since it plateaus while the agent stays present.
+
+        It is not a rounding nicety. It bites on the first re-emission
+        (``0.9*0.9 + 0.9 = 1.71`` clamps to ``0.9``, where unclamped it would
+        converge on 9.0), and the field crosses the wire as ``smell_grid`` every
+        turn, so a peer on the other reading sees numbers the shared locked
+        model cannot produce.
         """
         survive = 1.0 - self._config.decay
         ceiling = self._config.center_intensity
+        clamp_above = self._profile.clamp_scent_to_emit
         updated: dict[Cell, float] = {}
         for row in range(self._size):
             for col in range(self._size):
                 cell = (row, col)
                 fresh = emission_delta(self._config, agent_cell, cell)
                 value = max(0.0, survive * self._tau.get(cell, 0.0) + fresh)
-                value = min(ceiling, value)
+                if clamp_above:
+                    value = min(ceiling, value)
                 if value > 0.0:
                     updated[cell] = value
         self._tau = updated

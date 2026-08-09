@@ -22,6 +22,9 @@ import hashlib
 import json
 from typing import Any
 
+from ...constants import CANONICAL_SEPARATORS
+from ...shared.interop_profile import DEFAULT, InteropProfile
+
 #: The reference report_writer's signature field - the key itself is part of the wire format.
 SIGNATURE_KEY = "חתימת_קונסנזוס_משותפת"  # noqa: E501
 
@@ -29,19 +32,27 @@ SIGNATURE_KEY = "חתימת_קונסנזוס_משותפת"  # noqa: E501
 SCOPE_ROW_KEYS = ("sub_game_number", "roles", "result", "winner_group", "tie", "score")
 
 
-def serialize_spaced(payload: Any) -> str:
-    """The settlement serialization: sorted keys, raw Hebrew, SPACED separators.
+#: ``json.dumps`` default spacing - the kit's settlement form.
+SPACED_SEPARATORS = (", ", ": ")
 
-    This is ``json.dumps``' default spacing ``(", ", ": ")`` - deliberately NOT
-    the compact form under the commit-reveal hashes. A report signed compact
-    fails settlement at the exact moment both teams must agree.
+
+def serialize_spaced(payload: Any, profile: InteropProfile = DEFAULT) -> str:
+    """The settlement serialization: sorted keys, raw Hebrew, dialect spacing.
+
+    Under the kit dialect this is ``json.dumps``' default spacing ``(", ", ": ")``
+    - deliberately NOT the compact form under the commit-reveal hashes, and
+    pinned by the kit's ``report_consensus`` vector. Under the book dialect the
+    project's one canonical form applies throughout, compact. A report signed in
+    the other spacing fails settlement at the exact moment both teams must
+    agree, which is rule #35 and a zero for both.
     """
-    return json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(", ", ": "))
+    separators = SPACED_SEPARATORS if profile.settlement_spaced else CANONICAL_SEPARATORS
+    return json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=separators)
 
 
-def consensus_signature(report: dict[str, Any]) -> str:
-    """SHA-256 over the spaced serialization of ``report``."""
-    return hashlib.sha256(serialize_spaced(report).encode("utf-8")).hexdigest()
+def consensus_signature(report: dict[str, Any], profile: InteropProfile = DEFAULT) -> str:
+    """SHA-256 over the settlement serialization of ``report``."""
+    return hashlib.sha256(serialize_spaced(report, profile).encode("utf-8")).hexdigest()
 
 
 def sign_report(report: dict[str, Any]) -> dict[str, Any]:
@@ -66,19 +77,28 @@ def verify_signed_report(signed: dict[str, Any]) -> bool:
     return consensus_signature(body) == signed[SIGNATURE_KEY]
 
 
-def series_aggregate(sub_games: list[dict[str, Any]], tie_score: int) -> dict[str, Any]:
+def series_aggregate(
+    sub_games: list[dict[str, Any]], tie_score: int, profile: InteropProfile = DEFAULT
+) -> dict[str, Any]:
     """Derive the aggregate from the rows - derived, never declared (SPEC section 6).
 
     ``ties`` counts only tie-SCORED rows; a zeroed row (timeout, technical loss)
     is a sanction credited to nobody, which keeps the accounting identity
-    ``won_a + won_b + ties + zeroed == num_sub_games``. On a series tie the
-    App. F tie award is ADDED into each side's ``total_score`` (the reference's
-    own aggregate behaviour); the +10 diversity award NEVER enters the totals -
-    the league table applies it from the flag.
+    ``won_a + won_b + ties + zeroed == num_sub_games``. The +10 diversity award
+    NEVER enters the totals - the league table applies it from the flag.
+
+    On a series tie the App. F award is either ADDED to each side's total or
+    REPLACES it, per ``profile.tie_award``. App. F table 17 is ambiguous and the
+    kit does not settle it - ``report_consensus`` pins the settlement
+    serialization and says nothing about aggregate semantics - so two lawful
+    teams can disagree here under either dialect. ``total_score`` sits inside
+    the settlement scope, so a disagreement forks ``mutual_agreement.sha256``
+    and zeroes both teams under rule #35. Hence it is declared at the handshake.
 
     Args:
         sub_games: kit-shaped rows, each carrying ``score`` per group id.
         tie_score: the App. F tie award from the signed contract, never hardcoded.
+        profile: the declared dialect, deciding the tie-award reading.
     """
     groups: list[str] = sorted({group for row in sub_games for group in row["score"]})
     totals = {g: sum(int(row["score"][g]) for row in sub_games) for g in groups}
@@ -86,7 +106,10 @@ def series_aggregate(sub_games: list[dict[str, Any]], tie_score: int) -> dict[st
     ties = sum(1 for row in sub_games if row.get("tie"))
     series_tie = len(groups) == 2 and totals[groups[0]] == totals[groups[1]]
     if series_tie:
-        totals = {g: total + tie_score for g, total in totals.items()}
+        totals = {
+            g: (total + tie_score if profile.tie_award_adds else tie_score)
+            for g, total in totals.items()
+        }
     winner = None if series_tie else max(totals, key=lambda g: totals[g])
     return {
         "total_score": totals,
@@ -113,11 +136,12 @@ def mutual_agreement_scope(
     }
 
 
-def mutual_agreement_hash(scope: dict[str, Any]) -> str:
-    """The settlement hash: the SPACED form over the trimmed scope.
+def mutual_agreement_hash(scope: dict[str, Any], profile: InteropProfile = DEFAULT) -> str:
+    """The settlement hash: the dialect's settlement form over the trimmed scope.
 
-    Proven live cross-implementation (kit SPEC section 6): the spaced-form hash
-    of this exact scope matched byte-for-byte between two independent teams;
-    the compact form never can.
+    Proven live cross-implementation under the kit dialect (SPEC section 6): the
+    spaced-form hash of this exact scope matched byte-for-byte between two
+    independent teams. A book-dialect pair matches on the compact form instead.
+    What never works is a pair that has not agreed which.
     """
-    return consensus_signature(scope)
+    return consensus_signature(scope, profile)

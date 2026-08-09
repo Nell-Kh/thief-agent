@@ -29,6 +29,7 @@ from police_thief.shared.interop import negotiate_extras, terms_from_contract  #
 from police_thief.shared.preflight import (  # noqa: E402
     compare_signed_terms,
     counted_series_blockers,
+    dialect_lines,
     report_lines,
     terms_from_raw,
     would_handshake,
@@ -71,16 +72,19 @@ def main() -> int:
     """Compare both configs and print the verdict; 1 when a blocker is found."""
     args = parse_args()
     manager = ConfigManager.load(args.role)
-    ours = terms_from_contract(manager.contract)
+    ours = terms_from_contract(manager.contract, manager.interop)
     try:
-        theirs = terms_from_raw(read_json(args.their_config))
+        theirs = terms_from_raw(read_json(args.their_config), manager.interop)
     except ConfigError as error:
         print(f"BLOCKER - their config does not load under our contract rules:\n  {error}")
         print("  Our peer would fail to start on this file; ask them for the missing key.")
         return 1
 
     differences = compare_signed_terms(ours, theirs)
-    for line in report_lines(differences, negotiate_extras(args.role, 1), args.role):
+    extras = negotiate_extras(args.role, 1, manager.interop)
+    for line in report_lines(differences, extras, args.role):
+        print(line)
+    for line in dialect_lines(manager.interop, str(manager.contract.world.map_area)):
         print(line)
     reporting, reporting_ok = _reporting_lines(manager, args.counted)
     for line in reporting:

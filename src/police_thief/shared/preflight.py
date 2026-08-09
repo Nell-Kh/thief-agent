@@ -24,6 +24,7 @@ from typing import Any
 from ..constants import AGENT_REPORT_ADDRESS, EMAIL_MODE_SEND
 from .contract import build_contract
 from .interop import terms_from_contract
+from .interop_profile import InteropProfile
 
 #: Sentinel for a term one side does not carry at all - distinct from a value
 #: that is present and merely different, because the fixes differ.
@@ -74,7 +75,9 @@ class TermDifference:
         return f"{self.key}: ours={self.ours!r} theirs={self.theirs!r}"
 
 
-def terms_from_raw(raw: dict[str, Any]) -> dict[str, Any]:
+def terms_from_raw(
+    raw: dict[str, Any], profile: InteropProfile | None = None
+) -> dict[str, Any]:
     """The flat signed terms implied by a raw ``game.json`` mapping.
 
     Raises:
@@ -82,7 +85,12 @@ def terms_from_raw(raw: dict[str, Any]) -> dict[str, Any]:
             which is itself a finding, since our peer would fail to start on
             that file at all.
     """
-    return terms_from_contract(build_contract(raw))
+    contract = build_contract(raw)
+    return (
+        terms_from_contract(contract, profile)
+        if profile is not None
+        else terms_from_contract(contract)
+    )
 
 
 def compare_signed_terms(
@@ -104,6 +112,32 @@ def compare_signed_terms(
 def would_handshake(differences: list[TermDifference]) -> bool:
     """Whether the signed terms agree - the one thing this file can decide."""
     return not differences
+
+
+def dialect_lines(profile: InteropProfile, setting: str) -> list[str]:
+    """What we speak, and whether the arena matches the dialect's own default.
+
+    ``setting`` is a negotiable term, and App. F says a negotiable parameter
+    defaults to the printed example - ``"New York"`` - absent explicit
+    agreement. The kit's fixtures ship ``"Haifa"`` instead, so the two dialects
+    disagree about what an unnegotiated opponent will be holding. The shared
+    ``game.json`` always states one explicitly, which IS the explicit agreement
+    App. F asks for; this only warns when that statement contradicts the
+    dialect we are about to declare, because then the likeliest peer refuses.
+    """
+    lines = [
+        f"  interop dialect        : {profile.name} "
+        f"(seal, scent clamp, settlement form, terms shape)",
+        f"  tie-award semantics    : {profile.tie_award} "
+        f"(the book is ambiguous and the kit does not settle it)",
+    ]
+    if setting != profile.default_setting:
+        lines.append(
+            f"  NOTE: setting is {setting!r} but the {profile.name} default is "
+            f"{profile.default_setting!r} - a peer that has not negotiated the "
+            f"arena with us will refuse on this term."
+        )
+    return lines
 
 
 def report_lines(

@@ -27,6 +27,31 @@ turn_timeout_seconds = 180
 #    Kept only as the documented research alternative (notebook 9b, hybrid.py).
 police_class = "police_thief.domain.brain.wall:WallPoliceBrain"
 
+[interop]
+# Which of two lawful readings of the book we speak on the wire. Four places -
+# the commit seal, the scent clamp, the settlement serialization and the signed
+# terms shape - have a kit reading and a book reading, and BOTH are defensible
+# under the rulebook's academic-freedom clause. Picking one silently is the
+# failure: two lawful peers that disagree each conclude the other forged its
+# log, and rules #19/#35 then score both teams zero.
+#
+#   kit  - the class interop kit (copthief-league-protocol) and the reference
+#          peer it pins. Our 14 vendored vectors pass byte-for-byte under it.
+#   book - the printed formulae of ch. 4.3 and ch. 5.3.1, literally.
+#
+# Declared at the handshake beside the locked-model hashes, so a mismatch
+# refuses before kickoff instead of surfacing as a mutual zero at the audit.
+# See docs/REVIEW_HOSTILE.md H0-H4 and README.md section 8.
+profile = "kit"
+
+# Series tie: does the App. F award ADD to the accumulated sub-game totals, or
+# REPLACE them? The book is ambiguous and the kit does NOT settle it - its
+# report_consensus vector pins the serialization and says nothing about
+# aggregate semantics - so this forks the settlement hash under either dialect.
+# Declared separately for that reason. "add" is the reading this project has
+# always used; agree it with the opponent before a counted series.
+tie_award = "add"
+
 [deception]
 # The cop has no claim-feedback channel, so it never risks a directional
 # leak: vague hints give a scent-verifying thief nothing to work with.

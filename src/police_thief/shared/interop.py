@@ -15,6 +15,7 @@ import uuid
 from typing import Any
 
 from .config_io import canonical_json, sha256_of
+from .interop_profile import DEFAULT, InteropProfile
 from .schema import GameContract
 
 #: Registered locked-model documents we declare at negotiation (kit SPEC §7).
@@ -61,19 +62,26 @@ SCENT_MODEL_DOC: dict[str, Any] = {
 }
 
 
-def terms_from_contract(contract: GameContract) -> dict[str, Any]:
-    """The flat 14-key signed terms - the reference's ``terms_from_config``.
+def terms_from_contract(
+    contract: GameContract, profile: InteropProfile = DEFAULT
+) -> dict[str, Any]:
+    """The flat signed terms - the reference's ``terms_from_config``.
 
     This exact key set (and nothing else) is what both peers sign and what
     the shared ``game_uid`` is derived from; deriving from a wider object
     silently forks the uid (observed live in the league, kit SPEC §6).
+
+    Fourteen keys under the kit dialect, thirteen under the book: the kit adds
+    ``min_center_intensity``, which is not an Appendix B field. Since
+    :func:`negotiation.validate_terms` compares the whole object, a peer signing
+    the other count is refused outright - which is the honest outcome, but only
+    if we know which count we meant.
     """
-    return {
+    terms: dict[str, Any] = {
         "board_size": contract.board.grid_size,
         "smell_grid_size": contract.pheromones.grid_size,
         "decay_per_step": contract.pheromones.decay,
         "emit_intensity": contract.pheromones.center_intensity,
-        "min_center_intensity": contract.pheromones.min_center_intensity,
         "max_steps": contract.movement.max_moves,
         "barriers_max": contract.movement.max_barriers,
         "setting": contract.world.map_area,
@@ -84,10 +92,21 @@ def terms_from_contract(contract: GameContract) -> dict[str, Any]:
         "cop_start": list(contract.board.cop_start),
         "num_games": contract.network.num_games,
     }
+    if profile.terms_carry_min_center_intensity:
+        terms["min_center_intensity"] = contract.pheromones.min_center_intensity
+    return terms
 
 
 def sign_terms(terms: dict[str, Any], nonce: str) -> str:
-    """The agreement signature: ``SHA256(canonical(terms) + "|" + nonce)``."""
+    """The agreement checksum: ``SHA256(canonical(terms) + "|" + nonce)``.
+
+    Named "signature" on the wire because that is the kit's field name and
+    changing it would break every conformant peer - but it is a keyed signature
+    in neither name nor fact. ``terms``, ``nonce`` and the digest all travel in
+    the same greeting, so anyone can recompute it; it detects corruption in
+    transit, not forgery by the sender. Book ch. 5.5 asks for signing under a
+    pre-supplied key, which this project does not implement (README section 8).
+    """
     material = f"{canonical_json(terms)}|{nonce}"
     return hashlib.sha256(material.encode("utf-8")).hexdigest()
 
@@ -115,13 +134,21 @@ def scent_model_lock() -> str:
     return sha256_of(SCENT_MODEL_DOC)
 
 
-def negotiate_extras(role: str, sub_game_number: int) -> dict[str, Any]:
-    """Locked-model + pairing declarations riding beside the signed terms.
+def negotiate_extras(
+    role: str, sub_game_number: int, profile: InteropProfile = DEFAULT
+) -> dict[str, Any]:
+    """Locked-model, pairing and dialect declarations beside the signed terms.
 
     Pairing fields (SPEC §7.2, PROMOTED): ``role`` and ``sub_game_number``
     catch a mispairing at the only moment it is still visible - the
     handshake. Model hashes declare our physics; per the kit's refusal rule,
     an opponent that omits a family is never refused for silence.
+
+    ``interop_profile`` and ``tie_award`` extend that idea to the four dialect
+    forks and the tie-award reading. They are the difference between a
+    disagreement you answer in a chat message before kickoff and one you
+    discover as a mutual zero at the audit, so unlike the model families they
+    refuse on a stated difference in either direction.
     """
     return {
         "role": role,
@@ -129,4 +156,5 @@ def negotiate_extras(role: str, sub_game_number: int) -> dict[str, Any]:
         "scent_model_sha256": SCENT_MODEL_SHA256,
         "wire_shape_sha256": WIRE_SHAPE_SHA256,
         "info_mode_sha256": INFO_MODE_SHA256,
+        **profile.declaration(),
     }

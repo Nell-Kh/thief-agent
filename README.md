@@ -18,8 +18,8 @@ conformance chapter, and an honest self-grade of the code.
 1. [Quick start](#quick-start)
 2. [Abstract & system overview](#1-abstract--system-overview)
 3. [The Dec-POMDP formalism](#2-the-dec-pomdp-formalism)
-4. [Belief machinery](#3-belief-machinery-scent-motion-negative-evidence-claim-pin)
-5. [Orchestration dilemmas](#4-orchestration-dilemmas-turns-failures-gatekeeper)
+4. [Belief machinery](#3-belief-machinery-scent-evidence-motion-judge-negative-evidence-claim-pin)
+5. [Orchestration dilemmas](#4-orchestration-dilemmas-turns-failures-gatekeeperorchestrator)
 6. [Strategy generation 0–1 — pinch failure and the region cop](#5-strategy-generation-01--pinch-failure-and-the-region-cop)
 7. [Strategy generation 2 — wall cop, red team, hybrid frontier](#6-strategy-generation-2--wall-cop-red-team-hybrid-frontier)
 8. [The verbal layer & deception economics](#7-the-verbal-layer--deception-economics)
@@ -28,6 +28,7 @@ conformance chapter, and an honest self-grade of the code.
 11. [Screenshots](#10-screenshots)
 12. [Cross-repo links](#11-cross-repo-links)
 13. [Code-quality self-grade (rule #55)](#12-code-quality-self-grade-rule-55)
+    - [12.1 Five decisions the rules do not require](#121-five-decisions-the-rules-do-not-require)
 14. [Limitations & future work](#13-limitations--future-work)
 15. [Documentation index](#documentation-index)
 
@@ -98,6 +99,20 @@ this report walks through the formal model (§2), how belief is actually compute
 reliability engineering that keeps two independent processes from deadlocking each other (§4),
 three generations of strategy work (§5–§6), what we learned about lying over a scent channel
 (§7), and how we made our wire format interoperate with an independently authored kit (§8).
+
+**Five decisions the rulebook does not require.** Most of this project implements a
+specification. These five do not — each exists because a specific failure was possible, was
+going to be silent, and was going to cost points in a way nobody could reconstruct afterwards.
+They are the parts we would defend in a review, and each is evidenced in
+[§12.1](#121-five-decisions-the-rules-do-not-require):
+
+| | Decision | The silent failure it prevents |
+|---|---|---|
+| 1 | **Audit physics, not just hashes** (`domain/audit.py`) | A perfectly hash-consistent log that teleports, moves diagonally, or walks through a declared barrier |
+| 2 | **A hostile peer forfeits instead of crashing us** (`domain/audit.py::_disclosed_records`, 17 fuzz tests) | Their malformed disclosure taking our process down, turning their forfeit into our technical loss |
+| 3 | **The containment alarm accuses us first** (`services/series_guard.py`) | Six contained sub-games reporting as a tidy 2–2 series while our own driver was the thing that was broken |
+| 4 | **A counted claim must be addressed to count** (`infra/email/report_blocks.py::_is_armed`) | A misconfigured recipient turning a won series into a rule-#38 false declaration |
+| 5 | **Find the refusal the night before** (`shared/preflight.py`) | Discovering a one-key contract disagreement at kickoff, with both teams waiting |
 
 ## 2. The Dec-POMDP formalism
 
@@ -487,10 +502,11 @@ All rows above are **perfect information**. Under belief, from the contract's fi
 
 | Engineering | Value |
 |---|---|
-| Test suite | 689 tests passing |
-| Coverage | 97.8% (gate: ≥ 85%, `pyproject.toml fail_under=85`) |
+| Test suite | 762 tests passing |
+| Coverage | 97.4% (gate: ≥ 85%, `pyproject.toml fail_under=85`) |
 | Token budget utilization (measured, full series) | ~14% of the ~200k series budget |
-| Interop conformance vectors, byte-exact | 14 vendored fixtures, 11 dedicated tests |
+| Interop conformance vectors, byte-exact | 14 vendored fixtures, 14 dedicated tests |
+| Dialect divergence (kit vs book), byte-exact | 8 dedicated tests, both profiles pinned |
 
 Full methodology, every intermediate figure, and the exhaustive 1900-pair validation harness are
 executed and version-controlled in `notebooks/analysis.ipynb` (built as code via
@@ -535,19 +551,25 @@ Rule #55 restricts self-grading to code quality, never the league outcome — th
 that, and only that, measured against this repository's own standing definition of done
 (`docs/TODO.md`, front matter):
 
-- **Tests & coverage:** 689 tests passing, 97.8% coverage against an 85%-floor gate that fails
+- **Tests & coverage:** 762 tests passing, 97.4% coverage against an 85%-floor gate that fails
   the whole suite if crossed — this is a hard CI gate, not an aspiration.
 - **Lint:** `ruff check .` clean against the configured rule families (E,F,W,I,N,UP,B,C4,SIM),
   line length 100, target py310.
-- **150-line law:** every file under `src/` and `tests/` is within the 150-code-line limit, and
-  `tests/unit/test_file_size_law.py` now enforces that as a test rather than as a claim — the
-  five `src/` files this section used to list as over the limit (`domain/trust.py`,
-  `services/turn_taking.py`, `services/orchestrator.py`, `services/inbound.py`,
-  `domain/brain/region.py`) were split during the §8.18 pass and now sit at 58–92 code lines.
-  Three developer scripts remain over it (`scripts/build_notebook.py`,
-  `scripts/friendly_series.py`, `scripts/sparring_series.py`); none is imported by `src/` or
-  runs during a match, their split is still open, and the same test fails the moment that debt
-  list stops matching reality — flagged here rather than quietly excluded from the count.
+- **150-line law:** every file under `src/`, `scripts/` and `tests/` is within the limit, and
+  `tests/unit/test_file_size_law.py` enforces it as a test rather than a claim. The debt list
+  `KNOWN_OVER_LIMIT` is **empty**: the three developer scripts that used to sit in it were split
+  (`build_notebook.py` 506 → 28 code lines behind `_notebook_part1..5`; the two series drivers
+  into CLI, declaration and per-sub-game modules) rather than exempted. The guidelines are
+  genuinely ambiguous about whether docstrings count toward the cap — ch. 3.2 excludes blanks
+  and comments and is silent on them, the p.24 card counts them in — so rather than argue for
+  the lenient reading, **every `src/` module now passes under both**, pinned by a second test.
+  The interpretation is no longer load-bearing.
+- **Docstrings:** 0 gaps for modules, classes, fixtures and helpers across `src/`, `scripts/`
+  and `tests/`. Test *functions* are a declared exception — their names are full sentences, and
+  a docstring restating the name adds a line and no information — and the exception is enforced
+  by `tests/unit/test_docstring_law.py`, which requires an undocumented test to have at least
+  four words after `test_`. It caught 7 short names; all 7 were documented rather than the
+  threshold lowered to fit them.
 - **Documentation-first process:** every mechanism has a dedicated PRD written and reviewed
   before its code; `docs/PLAN.md` records eight ADRs with trade-offs, not just decisions;
   `docs/COMPLIANCE.md` traces every one of the rulebook's 55 rules to a module and a proving
@@ -562,6 +584,66 @@ that, and only that, measured against this repository's own standing definition 
   `docs/TODO.md` alongside their fixes, not smoothed over — we consider a project's failure log a
   code-quality signal in its own right, since it is the only honest evidence that the test suite
   is doing real work rather than confirming what was already assumed.
+
+### 12.1 Five decisions the rules do not require
+
+Each of these cost real effort and none is mandated. They are here because the failure it
+prevents is *silent* — it does not raise, does not show up in a passing suite, and shows up
+instead as points lost in a way that cannot be reconstructed after the fact.
+
+**1. The audit verifies physics, not just hashes.** Rule #19 requires one thing: recompute every
+revealed record against its commitment, and treat a mismatch as proven tampering. We do that —
+and then `domain/audit.py` re-walks the whole trajectory against the signed contract. A log can
+be perfectly hash-consistent and still physically impossible: a teleport between steps, a
+diagonal move, a walk through a barrier the opponent itself declared. Hash verification cannot
+see any of those, because the opponent hashed exactly what it intended to send. Evidence:
+`verify_trajectory` and `verify_concession` in the audit path, `test_logbook_audit.py::
+test_a_teleport_fails_physics_even_with_clean_hashes`, and the same engine drives the Replay
+Viewer's verdict so the screenshot in §10 is the audit, not a decoration.
+
+**2. A hostile peer forfeits instead of crashing us.** The natural way to write an auditor is a
+chain of `.get()` calls over the opponent's disclosure. A peer that sends `records` as a string,
+a record as a bare number, or a payload that is not an object then takes *our* process down —
+converting their broken submission into our technical loss. `_disclosed_records` does one
+structural check up front so such a disclosure fails cleanly and the sender forfeits.
+Deliberately a *structure* check and never a schema one: which fields a payload carries is the
+peer's own business, so any dict payload passes. Evidence: `test_hostile_wire.py`, 17 tests,
+including `test_lawful_scent_passes` as the false-positive control.
+
+**3. The containment alarm accuses our own driver first.** Containing a dead sub-game as a
+technical loss is right per sub-game — one dead tunnel must not cost the other five. It is the
+wrong lens on a whole series: an opponent failing *every single time* is far less likely than a
+fault on our side, and because each containment prints one quiet line and then scores a
+normal-looking technical loss, a broken driver otherwise finishes with a tidy summary and no
+alarm at all. That is not hypothetical — it is exactly how a `next_step` crash once produced a
+clean-looking 2–2 series report while the opponent lay dead. `containment_alarm` now shouts when
+contained failures dominate, and says the fault is probably ours. It only warns: it never
+raises, and never touches a byte of any artifact, because the report must stay honest about what
+actually happened. Evidence: `test_containment_alarm.py`.
+
+**4. A counted claim only arms when it is addressed to count.** `_is_armed` refuses to mark a
+report `counted` unless the recipient is the binding league address (rule #51). This is the
+fail-safe that decides whether a misconfiguration is an embarrassment or a disqualification: an
+external review found `[email].recipient` pointing at a team member's own inbox, which meant
+100% of games would have scored nothing — but *reported honestly as friendlies* rather than
+claiming credit they could not have (rules #37/#38). The guard is now paired with
+`counted_series_blockers`, which refuses to start a counted series that cannot count, naming
+both the address and the delivery mode. Evidence: `test_counted_readiness.py`, 7 tests.
+
+**5. Find the handshake refusal the night before.** `validate_terms` refuses a series on any
+signed term that disagrees — correct, but expensive: it lands at kickoff, with both teams
+waiting and a tunnel already open. Every value in that set is readable from two config files
+beforehand, so `shared/preflight.py` finds the same disagreement in seconds the night before,
+and `scripts/preflight.py` exits 1 so it can gate a launch script. It reports what it *cannot*
+know — the locked-model hashes and the role split are not in either config file — as explicit
+questions for the opponent rather than silently assuming agreement. Evidence:
+`test_preflight.py`.
+
+**What none of this is.** These are engineering decisions, not results. Rule #55 restricts
+self-grading to code quality, and the honest summary is that all five are defences whose value
+is *unproven in league conditions* until the counted series in `docs/TODO.md` §11.3 are played
+against real opponents. Four of the five were written after a failure we actually hit; the fifth
+(#4) was written after an external review found the misconfiguration it guards.
 
 ## 13. Limitations & future work
 

@@ -20,9 +20,21 @@ build/
 .coverage
 htmlcov/
 
-# Runtime artifacts
-logs/*.json
-results/*.tmp
+# Runtime scratch ONLY.
+#
+# The four lifecycle artifacts per game - declaration, config, log, result -
+# are NOT scratch and must be committed: App. F Mandatory Rules #4 requires
+# every game's config file in the repository, and rule #50 wants the set, so a
+# grader can replay a match instead of taking our word for it. They used to be
+# excluded wholesale by `results/*.json` + `logs/*.json`, which meant the repo
+# could never contain a single piece of evidence that a game had been played.
+#
+# What genuinely is scratch: half-written files, the crash-recovery checkpoint
+# (evidence for us, never a document the league reads - see services/
+# series_guard.py), and superseded run directories.
+*.tmp
+rows_checkpoint.json
+*.superseded-*
 
 # Local sync scratch (git bundles used to mirror the dev environment)
 .sync/
@@ -34,5 +46,3 @@ results/*.tmp
 .DS_Store
 .idea/
 .vscode/
-results/*.json
-results/sparring_series/

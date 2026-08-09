@@ -22,6 +22,7 @@ full of. This file exempts itself, since it necessarily spells the prefixes out.
 
 from __future__ import annotations
 
+import re
 import subprocess
 from pathlib import Path
 
@@ -49,10 +50,10 @@ _PREFIXES = (
 )
 _PEM = "-----BEGIN" + " " + "PRIVATE KEY-----"
 
-#: Files that spell the prefixes out on purpose and so cannot be scanned:
-#: this one, and the runbook whose whole job is to say "a key starting like
-#: THIS is revoked over THERE". Both are documentation of shapes, never values.
-SCAN_EXEMPT = {"tests/unit/test_secrets_hygiene.py", "docs/SECURITY.md"}
+#: Only this file, which assembles the prefixes as literals. Documentation that
+#: merely NAMES a prefix no longer needs exempting, because the scanner requires
+#: a key body after it - so docs/SECURITY.md and docs/TODO.md are fully scanned.
+SCAN_EXEMPT = {"tests/unit/test_secrets_hygiene.py"}
 
 #: Binary/vendored paths where a prefix match would be meaningless.
 SCAN_SKIP_SUFFIXES = (".png", ".jpg", ".jpeg", ".gif", ".pdf", ".ico", ".lock")
@@ -90,9 +91,23 @@ def _committable_files() -> list[str]:
     return sorted({line for line in listing.splitlines() if line})
 
 
+#: A real key is a prefix followed by a long opaque body. Requiring that body is
+#: what separates a pasted credential from prose *about* credentials - the
+#: runbook in docs/SECURITY.md and the risk notes in docs/TODO.md both name these
+#: prefixes on purpose, and a scanner that fires on the bare prefix would either
+#: block honest documentation or be silenced by an exemption broad enough to hide
+#: a real key later. (Found the honest way: this check failed on TODO.md the
+#: moment that file started naming which token to revoke first.)
+_KEY_BODY = r"[A-Za-z0-9_\-]{12,}"
+
+
 def _looks_like_a_credential(text: str) -> list[str]:
-    """The issuer prefixes present in ``text``, if any."""
-    hits = [prefix for prefix in _PREFIXES if prefix in text]
+    """The issuer prefixes that appear followed by real key material."""
+    hits = [
+        prefix
+        for prefix in _PREFIXES
+        if re.search(re.escape(prefix) + _KEY_BODY, text)
+    ]
     if _PEM in text:
         hits.append("PEM private key")
     return hits
@@ -145,6 +160,36 @@ def test_no_committable_file_contains_live_credential_material() -> None:
         if hits := _looks_like_a_credential(text):
             offenders[path] = hits
     assert not offenders, f"live-credential shapes in committable files: {offenders}"
+
+
+def test_prose_about_credentials_is_not_mistaken_for_one() -> None:
+    """Documentation must be able to name a prefix without failing the build.
+
+    The alternative is an exemption list, and an exemption broad enough to cover
+    the security runbook is broad enough to hide a real key pasted into it later.
+    Requiring a key BODY after the prefix keeps both files fully scanned.
+    """
+    prose = [
+        "revoke the rnd_ token first - it is a Render infrastructure key",
+        "keys look like sk-proj-... or ghp_... depending on the issuer",
+        "| `rnd_...` | Render | dashboard.render.com |",
+    ]
+    for line in prose:
+        assert not _looks_like_a_credential(line), f"false positive on prose: {line!r}"
+
+
+def test_material_that_really_is_a_key_is_still_caught() -> None:
+    """The other half of the precision trade - recall must not have moved.
+
+    Synthetic bodies, not real credentials: the shapes are what matter.
+    """
+    planted = [
+        'MCP_AUTH_TOKEN="rnd_' + "A1b2C3d4E5f6G7h8" + '"',
+        'key = "sk-' + 'ant-api03-' + "x" * 20 + '"',
+        "token: ya29." + "a0ARGnu0Z6upgEBXo4VQ94",
+    ]
+    for line in planted:
+        assert _looks_like_a_credential(line), f"missed a credential shape: {line[:28]!r}"
 
 
 def test_the_env_example_documents_without_disclosing() -> None:

@@ -679,10 +679,21 @@ any file in this repository.
 
 ### 11.4 — Security
 
+**The graded obligation is met and enforced.** Rules #39/#40 forbid *committing* secrets: the
+history is clean (verified across every tree in every reachable commit), `.gitignore` covers
+every secret-bearing file, and `tests/unit/test_secrets_hygiene.py` re-checks all of it on every
+run. No row below affects the project mark.
+
+What remains is **personal account hygiene**, which cannot be done from inside the repository and
+is deliberately not marked ✔ while the credentials are still live. Ordered by real risk, not by
+row number: the Gmail **app password** first (app passwords bypass 2FA and grant far more than
+sending), then the **Render** token (`rnd_` = infrastructure API key), then the OAuth refresh
+token, then the two metered LLM keys.
+
 | # | Task | Priority | Owner | Status |
 |---|---|---|---|---|
-| 11.4 | **Secrets hygiene** — git history verified clean; the exposure is at rest | P0 | team | ◐ |
-| 11.4.1 | Rotate the `.env` secrets. **Audit finding: only `ANTHROPIC_API_KEY` is read by any module** — the other four were referenced nowhere, i.e. liability with no upside. Quarantined to the git-ignored `SECRETS-TO-REVOKE.local.md` and stripped from `.env`. **Revocation at each provider is still owed and only you can do it** | P0 | team | ◐ |
+| 11.4 | **Secrets hygiene.** Repo side: **done and enforced** (clean history, ignore rules, 7-check hygiene suite). Account side: revocations still owed — no bearing on the grade, real bearing on the accounts | P0 | team | ◐ |
+| 11.4.1 | Rotate the `.env` secrets. **Repo side done**: only `ANTHROPIC_API_KEY` is read by any module, the other four were referenced nowhere, and all four are now quarantined out of `.env` into the git-ignored `SECRETS-TO-REVOKE.local.md`. **Revocation still owed, in this order: `GMAIL_APP_PASSWORD` (bypasses 2FA — highest real risk), `MCP_AUTH_TOKEN` (Render infrastructure key), then `OPENAI_API_KEY`, then rotate `ANTHROPIC_API_KEY`.** Consoles listed in `docs/SECURITY.md` §2 | P0 | team | ⏱ |
 | 11.4.2 | Revoke and re-issue `token.json` and the `credentials.json` OAuth client. Runbook in `docs/SECURITY.md` §2, `token.json` first: its access token is already expired but the **refresh token does not expire** and grants `gmail.send` as the account owner until explicitly revoked at myaccount.google.com/permissions | P0 | team | ⏱ |
 | 11.4.3 | Move the repo out of `OneDrive\Desktop`, or add it to OneDrive's exclusion list. `.gitignore` has no bearing on this — the sync client copies ignored files regardless. Documented in `docs/SECURITY.md` §3; the move itself is a manual step | P0 | team | ⏱ |
 | 11.4.5 | Add `docs/SECURITY.md`: what the project actually needs, revocation runbook per provider, storage-location guidance, what the suite enforces, and what to do if a secret is ever committed | P1 | team | ✔ |

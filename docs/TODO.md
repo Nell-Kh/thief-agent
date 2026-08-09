@@ -626,20 +626,22 @@ any file in this repository.
 
 | # | Task | Priority | Owner | Status |
 |---|---|---|---|---|
-| 11.1 | **Submission blockers — the six gates that fail independently of code quality** | P0 | team | ☐ |
+| 11.1 | **Submission blockers — the six gates that fail independently of code quality** | P0 | team | ◐ |
+| 11.1.0 | **Pin line endings to LF (`.gitattributes` + `git add --renormalize`).** Discovered while starting 11.1.11: the tree's 193 "modified" files were a whole-repo CRLF conversion with zero content change (`git diff --ignore-cr-at-eol` empty). Committing it would have rewritten the byte-exact `tests/vectors/` fixtures and buried real history under a 22.8k-line diff | P0 | team | ✔ |
 | 11.1.1 | Split the dev repo into `police-agent` and `thief-agent`, both accessible to the lecturer (rule #49, App. ג) | P0 | team | ☐ |
 | 11.1.2 | Cross-link the two READMEs: cop README → thief repo, thief README → cop repo (rule #49) | P0 | team | ☐ |
-| 11.1.3 | Fix `repos = { cop = …, thief = … }` in BOTH per-peer TOMLs — currently the same URL twice, so the report's four-link block ships two duplicates (rule #49) | P0 | team | ☐ |
-| 11.1.4 | Fill `README.md` §11 with the two real URLs, replacing `TBD — task 8.19` | P0 | team | ☐ |
-| 11.1.5 | Carry `README`, `config/`, all `PRD_*`, `PLAN.md`, `TODO.md` into both repos (rule #50) | P0 | team | ☐ |
-| 11.1.6 | Point `[email] recipient` at `rmisegal+uoh26finalgame@gmail.com` in both TOMLs — today `_is_armed()` correctly disarms every report, so 100 % of games score `counted: false` (rules #32/#51) | P0 | team | ☐ |
-| 11.1.7 | Add a preflight assertion that refuses to start a counted series when `recipient != AGENT_REPORT_ADDRESS`, so the misconfiguration cannot recur silently | P1 | team | ☐ |
-| 11.1.8 | Un-ignore the four lifecycle artifacts: narrow `.gitignore:24,34,35` to scratch only (`*.tmp`, `rows_checkpoint.json`, `*.superseded-*`) — App. ו Mandatory Rules #4 requires every game's config file in the repo | P0 | team | ☐ |
-| 11.1.9 | Commit `declaration_*.json`, `config_*_gNN.json`, `log_*_gNN.json`, `result_*.json` for every counted game (rule #50, ch. 9.3.3) | P0 | team | ☐ |
-| 11.1.10 | Verify with `git ls-files results/ logs/` that the artifacts are actually tracked — today it returns only `results/.gitkeep` | P0 | team | ☐ |
-| 11.1.11 | Commit the working tree: 30+ modified tracked files including all of `config/`, `README.md`, `COMPLIANCE.md`. A dirty tree makes the sealed Step-0 commit hash a false declaration (rules #53/#38) | P0 | team | ☐ |
-| 11.1.12 | Create and push the annotated tag `v1.0-submission` on both repos (rule #41, App. ג checklist) | P0 | team | ☐ |
-| 11.1.13 | Verify the tag with `git show v1.0-submission` and confirm it points at the commit that actually played | P1 | team | ☐ |
+| 11.1.3 | Fix `repos = { cop = …, thief = … }` in BOTH per-peer TOMLs — currently the same URL twice, so the report's four-link block ships two duplicates (rule #49). **Blocked by 11.1.1**: needs the two real URLs | P0 | team | ☐ |
+| 11.1.4 | Fill `README.md` §11 with the two real URLs, replacing `TBD — task 8.19`. **Blocked by 11.1.1** | P0 | team | ☐ |
+| 11.1.5 | Carry `README`, `config/`, all `PRD_*`, `PLAN.md`, `TODO.md` into both repos (rule #50). **Blocked by 11.1.1** | P0 | team | ☐ |
+| 11.1.6 | Point `[email] recipient` at `rmisegal+uoh26finalgame@gmail.com` in both TOMLs — `_is_armed()` was correctly disarming every report, so 100 % of games scored `counted: false` (rules #32/#51). Also pinned `mode = "draft"` as the committed resting state so no demo can mail the lecturer | P0 | team | ✔ |
+| 11.1.7 | Add a preflight assertion that refuses to start a counted series when the reporting config cannot score. Landed as `shared.preflight.counted_series_blockers()` covering BOTH the address (#51) and delivery mode (#32); `friendly_series.py` delegates to it, `scripts/preflight.py --counted` checks it the night before and exits 1. 7 regression tests | P1 | team | ✔ |
+| 11.1.8 | Un-ignore the four lifecycle artifacts: `.gitignore` narrowed to scratch only (`*.tmp`, `rows_checkpoint.json`, `*.superseded-*`) — App. ו Mandatory Rules #4 requires every game's config file in the repo | P0 | team | ✔ |
+| 11.1.9 | Commit `declaration_*.json`, `config_*_gNN.json`, `log_*_gNN.json`, `result_*.json`. Rehearsal set (self-play + 6-game sparring) now tracked with `results/README.md` stating plainly that it is `counted: false, reason: friendly` and not league play. **Re-open per counted game** as 11.3.2/11.3.3 land | P0 | team | ◐ |
+| 11.1.10 | Verify with `git ls-files results/ logs/` that the artifacts are actually tracked — was returning only `results/.gitkeep`, now returns 21 files | P0 | team | ✔ |
+| 11.1.11 | Commit the working tree. Resolved via 11.1.0: the 193 modifications were line-endings, not work. Tree is clean; the sealed Step-0 commit hash is now meaningful (rules #53/#38) | P0 | team | ✔ |
+| 11.1.12 | Create and push the annotated tag `v1.0-submission` on both repos (rule #41, App. ג checklist). **Deliberately deferred**: the tag must mark the submission commit on each of the two final repos, so tagging the pre-split dev repo would point it at the wrong place. **Blocked by 11.1.1** | P0 | team | ☐ |
+| 11.1.13 | Verify the tag with `git show v1.0-submission` and confirm it points at the commit that actually played. **Blocked by 11.1.12** | P1 | team | ☐ |
+| 11.1.14 | `git push origin main` — the 11.1 commits are local only; the environment they were authored in has no push credentials | P0 | team | ☐ |
 
 ### 11.2 — Interop landmines (each zeroes US **and** an innocent opponent under rule #35/#19)
 
@@ -667,7 +669,7 @@ any file in this repository.
 |---|---|---|---|---|
 | 11.3 | **Play real opponents** — every artifact in `results/` is currently self-play | P0 | team | ⏱ |
 | 11.3.1 | Run `scripts/friendly_series.py` against a real external team as a warm-up (rule #52 permits uncounted friendlies) | P0 | team | ⏱ |
-| 11.3.2 | Play counted series #1 against a real team: 6 sub-games, clean audits, both sides mail their own report (rules #31/#35) | P0 | team | ⏱ |
+| 11.3.2 | Play counted series #1 against a real team: 6 sub-games, clean audits, both sides mail their own report (rules #31/#35). **Runbook: set `[email].mode = "send"` in both TOMLs first** — it is committed as `draft` so nothing can mail the lecturer by accident, and `friendly_series.py --counted` will refuse until it is flipped | P0 | team | ⏱ |
 | 11.3.3 | Play counted series #2 against a DIFFERENT team — `min_games_to_pass = 2`, and without it there is no passing grade at all (rule #31) | P0 | team | ⏱ |
 | 11.3.4 | Confirm both opponents' reports reached the league inbox and agree with ours field-for-field (rule #35 zeroes both teams on a contradiction) | P0 | team | ⏱ |
 | 11.3.5 | Replace `agreed_between: ["YANELL11", "OPPONENT-TBD"]` with the real counterparty per series | P0 | team | ☐ |

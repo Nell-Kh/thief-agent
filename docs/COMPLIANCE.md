@@ -29,7 +29,7 @@ binding parameter table of Appendix ו — see the table at the end.
 
 | # | Kind | Rule (essence) | Implementation | Proof | Status |
 |---|---|---|---|---|---|
-| 11 | must | The config file is byte-identical on both sides | `shared/config_io.canonical_json` + sha256 compared at negotiation; mismatch → refusal | `test_negotiation.py::test_a_contract_mismatch_is_refused` | ✔ |
+| 11 | must | The config file is byte-identical on both sides | `interop.terms_from_contract` extracts the flat signed terms; `negotiation.validate_terms` compares them whole-object and refuses any difference. (Correction: this row used to claim a whole-FILE sha256 is compared at negotiation. It is not — the wire carries `terms`, and `ConfigManager.config_sha256` is only ever printed.) | `test_negotiation.py::test_a_terms_value_mismatch_is_refused` | ✔ |
 | 12 | must | Parameter minimums may only be raised by agreement, never lowered | `config/game.json` carries the Appendix-ו minimums; negotiation locks the shared hash | `test_contract_values.py` pins every binding value | ✔ |
 | 13 | must | Movement is orthogonal only | `constants.MOVE_DELTAS` cannot express a diagonal; `rules.validate_move` | `test_rules.py` | ✔ |
 | 14 | never | No diagonal moves — the opponent rejects them | `enforcement.py` + `rules.validate_move` applied to revealed moves in the audit physics layer | `test_rules.py::test_a_diagonal_or_unknown_move_is_rejected`; audit physics layer | ✔ |
@@ -44,9 +44,9 @@ binding parameter table of Appendix ו — see the table at the end.
 | 18 | must | Nonces stay secret until game end | `secrets.token_hex(16)`; nonces live only in the local logbook until disclosure | `test_crypto.py::test_nonces_never_repeat`; `turnmsg` refuses cleartext | ✔ |
 | 19 | must | Any hash mismatch at audit = technical disqualification | `domain/audit.py` layer 1; one mismatch → TAMPERED, no discretion | `test_logbook_audit.py::test_a_forged_hash_is_tampered`; `test_replay.py` | ✔ |
 | 20 | must | A replay viewer reconstructs and verifies the log | `domain/replay.py` + `gui/replay.py` (Verified OK / TAMPERED stamp) | `test_replay.py` | ✔ |
-| 21 | must | Declare the truth when caught | `turn_taking._answer_claim` answers claims truthfully, always | `test_concession.py` | ✔ |
+| 21 | must | Declare the truth when caught | `services/concession.py::answer_claim`, called from `turn_taking` — a true claim is always answered `caught: true` with our own sealed cell | `test_concession.py` | ✔ |
 | 22 | never | No false capture declarations | The capture claim is the cop's own sealed position; a lie dies in the audit | `test_hostile_wire.py`; audit cross-check | ✔ |
-| 23 | must | The scent-emission model is cryptographically locked pre-game | `negotiation.scent_lock_for` (sha256 of the emission matrix + decay) | `test_negotiation.py::test_a_scent_model_mismatch_is_refused` | ✔ |
+| 23 | must | The scent-emission model is cryptographically locked pre-game | `interop.scent_model_lock` / `scent.lock_sha256` — sha256 over the registered `multiplicative_book_v1` document, declared in `negotiate_extras` | `test_negotiation.py::test_a_scent_model_mismatch_is_refused` | ✔ |
 | 24 | must | Cryptographic hardware declaration pre-game | `sealing.step0_record` + `shared/sysinfo.hardware_spec`, sealed as Step-0 | `test_sealing.py::test_step0_declares_the_mandatory_identity_fields` | ✔ |
 
 ## Group 4 — Strategy, language, public network (rules #25–#30)
@@ -73,26 +73,26 @@ binding parameter table of Appendix ו — see the table at the end.
 | 37 | must | Declare the exact counted-games number at match start | `negotiation.build_terms(games_played=…)`; `InboundHandler.opponent_games_played` | `test_negotiation.py`; `test_inbound.py` | ✔ |
 | 38 | never | Never lie about the games count | Declaration goes into the signed terms; the lecturer's inbox is the oracle | terms are sealed — `test_negotiation.py` | ✔ |
 | 39 | never | Never push secrets to the repo — even a private one | `.gitignore`: `.env`, `credentials.json`, `token.json`, `*.pem`, `*.key` | `.gitignore` in repo; no secret has ever been committed | ✔ |
-| 40 | must | Credentials files are git-ignored | Same as #39 — both files listed explicitly | `.gitignore` lines 2–5 | ✔ |
+| 40 | must | Credentials files are git-ignored | Same as #39 — `.gitignore` names each explicitly | `tests/unit/test_secrets_hygiene.py` (rule text, real ignore behaviour, nothing tracked, and a full-history sweep) | ✔ |
 | 41 | must | Tag the submission version in Git | `v1.0-submission` tag at the split (task 8.6) | ⏱ at submission | ⏱ |
 | 42 | must | A comprehensive academic report in the repo | `README.md` full report (task 8.4: Dec-POMDP, dilemmas, strategies, screenshots) | ⏱ task 8.4 | ⏱ |
 | 43 | must | Moodle form filled and saved as PDF, fields untouched | Human step at submission | — | ⏱ |
 | 44 | must | Each team member submits individually on Moodle | Human step at submission | — | ⏱ |
-| 45 | must | Unique 8-character team code, no spaces | `[game] group_name` in the private TOMLs (to be finalized before league play) | ⏱ set before first counted game | ⏱ |
+| 45 | must | Unique 8-character team code, no spaces | `[game] group_name = "YANELL11"` in both private TOMLs — 8 characters, no spaces | `test_config.py` reads it; pinned by the shipped config | ✔ |
 
 ## Group 6 — Completions found by cross-checking the book (rules #46–#55)
 
 | # | Kind | Rule (essence) | Implementation | Proof | Status |
 |---|---|---|---|---|---|
-| 46 | must | A barrier on the thief's current cell is a capture | `rules.is_trapped` (cell blocked) → capture; `_apply_barrier` ends the thief's game | `test_rules.py`; `test_concession.py::test_a_trapping_barrier_makes_the_thief_concede` | ✔ |
-| 47 | must | A thief with no legal move is captured | `rules.is_trapped` (all exits blocked) checked in `engine.end_turn` | `test_rules.py::test_an_agent_walled_in_on_all_four_sides_is_trapped` | ✔ |
+| 46 | must | A barrier on the thief's current cell is a capture | `engine._place_barrier` applies it, `engine._check_termination` sees `board.is_barrier(thief)` and ends the game | `test_rules.py`; `test_concession.py::test_a_trapping_barrier_makes_the_thief_concede` | ✔ |
+| 47 | must | A thief with no legal move is captured | `rules.is_trapped` (all exits blocked), checked in `engine._check_termination` after every action — `end_turn` only runs the survival clock | `test_rules.py::test_an_agent_walled_in_on_all_four_sides_is_trapped` | ✔ |
 | 48 | must | Score by the scoring table (capture 20/5, survival 5/10, technical 0/0) | `domain/scoring.py`, values from `config/game.json` | `test_scoring.py`; `test_contract_values.py` | ✔ |
-| 49 | must | Two repos (cop, thief), cross-linked READMEs, 2 links on Moodle, 4 in the JSON | `reports.result_payload(repositories=…)` carries all four; split at task 8.6 | `test_email_reports.py` (four links asserted) | ✔/⏱ |
+| 49 | must | Two repos (cop, thief), cross-linked READMEs, 2 links on Moodle, 4 in the JSON | `report_blocks.links_block(github=…)` threaded into every payload as `links`. **Currently ships two duplicates, not four links**: both TOMLs name the same repo until the split (TODO 11.1.1/11.1.3) | `test_email_reports.py` (four links asserted) | ⏱ |
 | 50 | must | Each repo contains README, config/, PRDs, PLAN, TODO at minimum | All present in `docs/` + `config/`; carried into both repos at the split | repo tree | ✔ |
-| 51 | must | Reports go to the binding agent-report address | `constants.AGENT_REPORT_ADDRESS` = `rmisegal+uoh26finalgame@gmail.com`; recipient from config | `test_email_reports.py::test_the_binding_report_address` | ✔ |
+| 51 | must | Reports go to the binding agent-report address | `constants.AGENT_REPORT_ADDRESS` = `rmisegal+uoh26finalgame@gmail.com`; recipient from config | `test_email_reports.py::test_the_binding_report_address_is_the_rulebooks` | ✔ |
 | 52 | must | One counted game per opponent; warm-ups allowed | Declared via games-count terms (#37); scheduling is human | ⏱ league conduct | ⏱ |
 | 53 | must | Step-0 declares the commit hash actually playing; update it each game | `step0_record(github_commit=…)` — mandatory argument, sealed | `test_sealing.py::test_step0_declares_the_mandatory_identity_fields` | ✔ |
-| 54 | must | The final JSON reports total tokens consumed | `TokenLedger.total` → `result_payload(tokens_total=…)` | `test_llm.py` (ledger); `test_email_reports.py` | ✔ |
+| 54 | must | The final JSON reports total tokens consumed | `TokenLedger.total` feeds each row's `tokens`; `result_payload` DERIVES `tokens_total_series` (inside `final_result`) by summing them, and `result_check` refuses a total that drifts from the rows | `test_llm.py` (ledger); `test_email_reports.py` | ✔ |
 | 55 | must | Self-grade code quality only — never the league outcome | Self-assessment written for code quality in the README (task 8.4) | ⏱ task 8.4 | ⏱ |
 
 ---
@@ -102,8 +102,8 @@ binding parameter table of Appendix ו — see the table at the end.
 | Requirement | Where enforced | Evidence |
 |---|---|---|
 | Python managed with `uv` only (no pip/venv) | `pyproject.toml` + `uv.lock` | repo root |
-| Every code file ≤ 150 lines | enforced by `tests/unit/test_file_size_law.py` (code-lines = non-blank, non-comment, non-docstring) | `src/` and `tests/` fully within the cap — largest src file `services/turn_taking.py`, 92 code lines. **Three developer scripts are still over** and carry an explicit debt entry: `build_notebook.py` (506), `friendly_series.py` (254), `sparring_series.py` (202) |
-| Test coverage ≥ 85% | `pyproject.toml` `fail_under=85` — the suite FAILS below it | current: **97.8%**, 689 tests |
+| Every code file ≤ 150 lines | enforced by `tests/unit/test_file_size_law.py` (code-lines = non-blank, non-comment, non-docstring) | `src/` and `tests/` fully within the cap — largest src file `services/series_guard.py`, 102 code lines. **Three developer scripts are still over** and carry an explicit debt entry: `build_notebook.py` (506), `friendly_series.py` (260), `sparring_series.py` (202). Note the cap is measured excluding docstrings; under the guidelines' plainer wording (blanks and comments only) `series_guard.py` is 160 and over — tracked as TODO 11.6.1/11.6.2 |
+| Test coverage ≥ 85% | `pyproject.toml` `fail_under=85` — the suite FAILS below it | current: **97.6%**, 735 tests |
 | `ruff check` clean (E,F,W,I,N,UP,B,C4,SIM; line 100) | `pyproject.toml` `[tool.ruff]` | `All checks passed!` |
 | Docstring on every module, class and function | convention + review | complete across `src/` (0 gaps) and `scripts/` (0 gaps). **`tests/` is not yet complete** — most test functions rely on their sentence-length names instead of a docstring; a sweep is still owed |
 | No hardcoded values — everything from configuration | `config/game.json` + per-peer TOMLs; `test_contract_values.py` pins them | ✔ (8.18 sweep found and fixed one gap: the Gatekeeper's DOS-window defaults were not wired from `config/rate_limits.json` — now required constructor args, sourced in `configured_sender`, regression-tested) |
@@ -154,7 +154,7 @@ verification pass, not against a claim.
 
 **17.3 Tests & quality**
 - ✔ TDD — tests committed alongside every module (`docs/PROMPTS.md` entries; Phase 10 inventory).
-- ✔ Coverage ≥ 85% — 97.8% measured over 689 tests, gate enforced by `pyproject.toml fail_under=85`.
+- ✔ Coverage ≥ 85% — 97.6% measured over 735 tests, gate enforced by `pyproject.toml fail_under=85`.
 - ✔ Ruff — zero errors after this pass (see 8.18.1 below; was not actually zero before it).
 - ✔ Edge cases documented — hostile-wire fuzz battery (`test_hostile_wire.py`, 14 tests),
   interop delivery-contract decision table (`test_kit_delivery.py`).
@@ -234,7 +234,7 @@ they should pass:
    scenes and verdicts. Neither property was previously pinned by a test.
 
 Suite grew from 611 to **613** tests (2 new determinism tests; the interop split kept the same
-19 tests, just repartitioned across two files). Full suite green, 97.8% coverage, `ruff check .`
+19 tests, just repartitioned across two files). Full suite green at that time (97.8% coverage), `ruff check .`
 clean, notebook regenerated and re-diffed against its own prior committed run (8.18.11) with no
 change in any numeric result — only the lint-driven source formatting differs.
 

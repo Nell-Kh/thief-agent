@@ -656,7 +656,7 @@ any file in this repository.
 | 11.2.6 | **Tie-award semantics.** `consensus.series_aggregate` ADDS `tie_score` into `total_score`, which sits inside the settlement scope. App. ו table 17 reads as the score *for* a tie, not a bonus on top. Implement substitution behind the profile switch and declare the ambiguity in the report | P0 | team | ✔ |
 | 11.2.7 | Remove `pheromone_min_center_intensity` from the signed terms. **Resolved by profile-gating rather than removal**: present under `kit` (where the CORE `terms_signature` vector pins it), absent under `book`, so both readings are producible and the 14-vs-13 key count is a declared consequence of the dialect instead of an accident | P0 | team | ✔ |
 | 11.2.8 | ~~Remove the extra top-level `"version"` key from `config/game.json`~~ — **WON'T FIX, investigated.** It is required by `version.check_config_version` (the file would stop loading), and it is provably outside every exchanged surface: the negotiation compares `terms`, the report's `config_sha256` is `sha256_of(terms)`, and `ConfigManager.config_sha256` over the raw file is only ever *printed* by `__main__.py`, never sent. So it is local file-format metadata that cannot cause a mismatch. Kept | P1 | team | ✔ |
-| 11.2.15 | **Found while closing 11.2.8:** `COMPLIANCE.md` rule #11 claims the config is compared by "`canonical_json` + sha256 at negotiation". It is not — the handshake compares the flat `terms` object, and the whole-file hash is never exchanged. Correct the claim (folds into 11.5) | P1 | team | ☐ |
+| 11.2.15 | **Found while closing 11.2.8, fixed in the 11.5 sweep:** `COMPLIANCE.md` rule #11 claims the config is compared by "`canonical_json` + sha256 at negotiation". It is not — the handshake compares the flat `terms` object, and the whole-file hash is never exchanged. Correct the claim (folds into 11.5) | P1 | team | ✔ |
 | 11.2.9 | Decide `map_area`. **Decided: keep `"Haifa"`.** It is what the kit's own `terms_signature` fixture ships, so under the default dialect it agrees with the likeliest opponent with no pre-negotiation, and the committed `game.json` stating it explicitly *is* the "explicit agreement" App. ו asks for. `preflight.dialect_lines()` now warns when the arena contradicts the declared dialect, which is the case that actually refuses | P1 | team | ✔ |
 | 11.2.10 | Wire `mutual_agreement.confirmed` to the real audit outcome — `reports.py:128` hardcodes `True` and nothing anywhere sets it `False`, so the report asserts agreement with an opponent that may not exist (rules #35/#38) | P0 | team | ✔ |
 | 11.2.11 | Stop calling unkeyed hashes "signatures". `interop.sign_terms` and `report_blocks.group_block` are `sha256` over data that travels beside them; the `"terms signature does not verify"` branch is unreachable for any well-formed greeting. Either implement keyed signing (book ch. 5.5 says "מפתח המסופק מראש") or rename to `*_sha256` and state the scope decision in the report | P1 | team | ✔ |
@@ -692,16 +692,16 @@ any file in this repository.
 
 | # | Task | Priority | Owner | Status |
 |---|---|---|---|---|
-| 11.5 | **`docs/COMPLIANCE.md` misquotes its own codebase** — six of six spot-checked cells were wrong | P1 | team | ☐ |
-| 11.5.1 | Rule #23 cites `negotiation.scent_lock_for` — no such symbol exists. Correct to `interop.scent_model_lock` / `scent.lock_sha256` | P1 | team | ☐ |
-| 11.5.2 | Rule #46 cites `_apply_barrier` as the engine's; that name lives in `services/turn_receiving.py`, the engine's is `_place_barrier` | P1 | team | ☐ |
-| 11.5.3 | Rule #47 says `is_trapped` is checked in `engine.end_turn`; it is checked in `_check_termination` | P1 | team | ☐ |
-| 11.5.4 | Rule #49 cites `result_payload(repositories=…)` — no such parameter; it is `links` | P1 | team | ☐ |
-| 11.5.5 | Rule #54 cites `result_payload(tokens_total=…)` — no such parameter; the total is derived from rows | P1 | team | ☐ |
-| 11.5.6 | Correct the counts: "689 tests" and "613 tests" both appear; actual is 699. `.gitignore` "lines 2–5" is 2–6. "largest src file `turn_taking.py`, 92 code lines" is `series_guard.py`, 102 | P1 | team | ☐ |
-| 11.5.7 | Generate the rule→symbol references mechanically (or drop them) so the matrix cannot drift again | P2 | team | ☐ |
-| 11.5.8 | Update rule #45's status — the 8-char code `YANELL11` already exists; the row still says "to be finalized" | P2 | team | ☐ |
-| 11.5.9 | Fold `docs/REVIEW_HOSTILE.md` into the documentation index in `README.md` §"Documentation index" | P2 | team | ☐ |
+| 11.5 | **`docs/COMPLIANCE.md` misquotes its own codebase** — six of six spot-checked cells were wrong. A full mechanical sweep of all 211 backticked spans found 4 genuinely broken references (the other flagged spans were globs, stdlib names and external references) | P1 | team | ✔ |
+| 11.5.1 | Rule #23 cited `negotiation.scent_lock_for` — no such symbol. Corrected to `interop.scent_model_lock` / `scent.lock_sha256` | P1 | team | ✔ |
+| 11.5.2 | Rule #46 cited `_apply_barrier` as the engine's; that name lives in `services/turn_receiving.py`. Corrected to `engine._place_barrier` + `engine._check_termination` | P1 | team | ✔ |
+| 11.5.3 | Rule #47 said `is_trapped` is checked in `engine.end_turn`; it is checked in `_check_termination` after every action, while `end_turn` only runs the survival clock. Corrected | P1 | team | ✔ |
+| 11.5.4 | Rule #49 cited `result_payload(repositories=…)` — no such parameter. Corrected to `report_blocks.links_block(github=…)` threaded in as `links`, and the row downgraded to ⏱ since it currently ships two duplicated links, not four | P1 | team | ✔ |
+| 11.5.5 | Rule #54 cited `result_payload(tokens_total=…)` — no such parameter. Corrected: the total is DERIVED by summing the rows, and `result_check` refuses one that drifts | P1 | team | ✔ |
+| 11.5.6 | Corrected the counts, re-measured rather than transcribed: 735 tests / 97.6% (was 689 / 97.8%); `.gitignore` line numbers replaced with a reference to the test that cannot drift; largest src file is `services/series_guard.py` at 102 code lines (was claimed `turn_taking.py`, 92) | P1 | team | ✔ |
+| 11.5.7 | **Landed as verification, not generation.** `tests/unit/test_compliance_references.py` walks every backticked span and fails on a symbol, test, path or path-scoped symbol the tree does not contain, plus stale headline counts. The rule→code mapping stays a human judgement; only the existence claim is mechanical. Verified against a planted regression | P2 | team | ✔ |
+| 11.5.8 | Rule #45 updated — `group_name = "YANELL11"` is already 8 characters with no spaces; the row still said "to be finalized" | P2 | team | ✔ |
+| 11.5.9 | `docs/REVIEW_HOSTILE.md` and `docs/SECURITY.md` added to the README documentation index | P2 | team | ✔ |
 
 ### 11.6 — Guidelines compliance
 

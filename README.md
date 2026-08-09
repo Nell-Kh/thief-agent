@@ -599,7 +599,9 @@ that, and only that, measured against this repository's own standing definition 
 | [docs/PRD.md](docs/PRD.md) | Product requirements (master) |
 | [docs/PLAN.md](docs/PLAN.md) | Architecture, C4 model, ADRs |
 | [docs/TODO.md](docs/TODO.md) | Task tracking & milestone gates |
-| [docs/COMPLIANCE.md](docs/COMPLIANCE.md) | All 55 rules traced to module + test |
+| [docs/COMPLIANCE.md](docs/COMPLIANCE.md) | All 55 rules traced to module + test (references verified by `test_compliance_references.py`) |
+| [docs/REVIEW_HOSTILE.md](docs/REVIEW_HOSTILE.md) | Adversarial external review — findings, severities, and what each one costs |
+| [docs/SECURITY.md](docs/SECURITY.md) | Secrets inventory, rotation runbook, what the hygiene suite enforces |
 | docs/PRD_*.md | Dedicated PRD per mechanism (7 files) |
 | [docs/TUNNELING.md](docs/TUNNELING.md) | Public-URL exposure for league play |
 | [docs/PROMPTS.md](docs/PROMPTS.md) | Prompts book (AI-assisted development log) |

@@ -4,6 +4,9 @@ credentials.json
 token.json
 *.pem
 *.key
+# Quarantined credential values awaiting revocation (docs/SECURITY.md)
+SECRETS-TO-REVOKE.local.md
+*.local.md
 
 # Python
 __pycache__/

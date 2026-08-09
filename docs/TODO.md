@@ -681,11 +681,12 @@ any file in this repository.
 
 | # | Task | Priority | Owner | Status |
 |---|---|---|---|---|
-| 11.4 | **Secrets hygiene** — git history verified clean; the exposure is at rest | P0 | team | ☐ |
-| 11.4.1 | Rotate `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GMAIL_APP_PASSWORD`, `MCP_AUTH_TOKEN` in `.env` — all four were readable in plaintext during review | P0 | team | ☐ |
-| 11.4.2 | Revoke and re-issue `token.json` (live OAuth access token) and the `credentials.json` OAuth client | P0 | team | ☐ |
-| 11.4.3 | Move the repo out of `OneDrive\Desktop`, or add it to OneDrive's exclusion list — the four secrets are currently synced to Microsoft's cloud | P0 | team | ☐ |
-| 11.4.4 | Re-verify after the move: `git log --all` tree sweep shows no secret ever committed (confirmed clean at review time — keep it that way) | P1 | team | ☐ |
+| 11.4 | **Secrets hygiene** — git history verified clean; the exposure is at rest | P0 | team | ◐ |
+| 11.4.1 | Rotate the `.env` secrets. **Audit finding: only `ANTHROPIC_API_KEY` is read by any module** — the other four were referenced nowhere, i.e. liability with no upside. Quarantined to the git-ignored `SECRETS-TO-REVOKE.local.md` and stripped from `.env`. **Revocation at each provider is still owed and only you can do it** | P0 | team | ◐ |
+| 11.4.2 | Revoke and re-issue `token.json` and the `credentials.json` OAuth client. Runbook in `docs/SECURITY.md` §2, `token.json` first: its access token is already expired but the **refresh token does not expire** and grants `gmail.send` as the account owner until explicitly revoked at myaccount.google.com/permissions | P0 | team | ⏱ |
+| 11.4.3 | Move the repo out of `OneDrive\Desktop`, or add it to OneDrive's exclusion list. `.gitignore` has no bearing on this — the sync client copies ignored files regardless. Documented in `docs/SECURITY.md` §3; the move itself is a manual step | P0 | team | ⏱ |
+| 11.4.5 | Add `docs/SECURITY.md`: what the project actually needs, revocation runbook per provider, storage-location guidance, what the suite enforces, and what to do if a secret is ever committed | P1 | team | ✔ |
+| 11.4.4 | Re-verify no secret was ever committed. Now automated: `tests/unit/test_secrets_hygiene.py` re-runs the full-history sweep on every test run, alongside six other checks (ignore rules, real ignore behaviour, nothing tracked, no credential material in any tracked file, a non-disclosing `.env-example`, and `.env` carrying only what the code reads) | P1 | team | ✔ |
 
 ### 11.5 — Documentation honesty
 

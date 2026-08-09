@@ -40,15 +40,14 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 SCANNED_DIRS = ("src", "scripts", "tests")
 MAX_CODE_LINES = 150
 
-#: Files whose split is a pending decision, not an accepted exemption. Each is a
-#: developer script, none is imported by ``src/`` or by the game at runtime.
-KNOWN_OVER_LIMIT = frozenset(
-    {
-        "scripts/build_notebook.py",
-        "scripts/friendly_series.py",
-        "scripts/sparring_series.py",
-    }
-)
+#: Files whose split is a pending decision, not an accepted exemption.
+#:
+#: **Empty, and meant to stay that way.** The three developer scripts that used
+#: to sit here were split rather than exempted: the notebook builder into
+#: ``_notebook_part1..5`` behind ``_notebook_cells``, and the two series drivers
+#: along their real seams - CLI, declaration, per-sub-game play. An entry here is
+#: a debt with a due date, never a way to make the rule pass.
+KNOWN_OVER_LIMIT: frozenset[str] = frozenset()
 
 
 def _docstring_lines(tree: ast.Module) -> set[int]:

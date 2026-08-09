@@ -62,7 +62,6 @@ from _series_lib import (  # noqa: E402
 
 sys.path.insert(0, str(ROOT / "src"))
 
-from police_thief.constants import AGENT_REPORT_ADDRESS  # noqa: E402
 from police_thief.domain.audit import audit_disclosure  # noqa: E402
 from police_thief.domain.negotiation import build_terms  # noqa: E402
 from police_thief.infra.email.naming import (  # noqa: E402
@@ -98,6 +97,7 @@ from police_thief.shared.interop import (  # noqa: E402
     negotiate_extras,
     terms_from_contract,
 )
+from police_thief.shared.preflight import counted_series_blockers  # noqa: E402
 from police_thief.shared.sysinfo import hardware_spec  # noqa: E402
 from police_thief.shared.version import __version__  # noqa: E402
 
@@ -253,13 +253,15 @@ def main() -> None:
     if us == args.opponent_group_id:
         raise SystemExit("refusing to play: our group_id equals --opponent-group-id")
     recipient = str(config.private_value("email", "recipient", ""))
-    if args.counted and recipient != AGENT_REPORT_ADDRESS:
+    blockers = counted_series_blockers(
+        recipient, str(config.private_value("email", "mode", ""))
+    )
+    if args.counted and blockers:
         raise SystemExit(
-            f"REFUSING to play a counted series that cannot count: --counted was "
-            f"requested but [email].recipient is {recipient!r}, not the binding league "
-            f"address {AGENT_REPORT_ADDRESS!r}. A counted report only arms when addressed "
-            f"there (rule 51), so this series would silently earn zero credit. Fix the "
-            f"recipient in the config, then re-run."
+            "REFUSING to play a counted series that cannot count:\n"
+            + "\n".join(f"  - {blocker}" for blocker in blockers)
+            + "\nThis series would play perfectly and earn zero credit. Fix the "
+              "config, then re-run."
         )
     terms = terms_from_contract(config.contract)
     ids = derive_game_ids(terms, us, args.opponent_group_id)

@@ -21,12 +21,44 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from ..constants import AGENT_REPORT_ADDRESS, EMAIL_MODE_SEND
 from .contract import build_contract
 from .interop import terms_from_contract
 
 #: Sentinel for a term one side does not carry at all - distinct from a value
 #: that is present and merely different, because the fixes differ.
 ABSENT = "<absent>"
+
+
+def counted_series_blockers(recipient: str, mode: str) -> list[str]:
+    """Why this configuration cannot score a counted series, in plain words.
+
+    Two settings decide whether a won series is worth anything, and both fail
+    *silently*: a report addressed anywhere but the binding league address never
+    arms (``report_blocks._is_armed``), and a report built in ``draft`` mode is
+    never delivered at all. Either one turns six clean sub-games into nothing,
+    and neither announces itself - the series simply plays, reports, and scores
+    zero. Both were true in this repository at once.
+
+    Returns:
+        A list of blocker descriptions, empty when the configuration can score.
+        Callers about to play a COUNTED series must refuse on a non-empty list;
+        a friendly ignores it, which is exactly what makes a friendly safe.
+    """
+    blockers: list[str] = []
+    if recipient != AGENT_REPORT_ADDRESS:
+        blockers.append(
+            f"recipient is {recipient!r}, not the binding league address "
+            f"{AGENT_REPORT_ADDRESS!r} - the report would never arm as counted "
+            f"(rule #51). Fix [email].recipient in the per-peer TOML."
+        )
+    if mode != EMAIL_MODE_SEND:
+        blockers.append(
+            f"email mode is {mode!r}, so the report is parked in Drafts and the "
+            f"lecturer receives nothing - a counted game must be reported for "
+            f"real (rule #32). Set [email].mode = \"send\" for a counted series."
+        )
+    return blockers
 
 
 @dataclass(frozen=True)

@@ -69,6 +69,12 @@ RESULT_FILE: Final[str] = "result_{game_id}.json"
 AGENT_REPORT_ADDRESS: Final[str] = "rmisegal+uoh26finalgame@gmail.com"
 LECTURER_ADDRESS: Final[str] = "rmisegal@gmail.com"
 
+# --- Report delivery modes (rulebook ch. 9.3.3) -----------------------------
+#: Build the message and park it in Gmail Drafts - the rehearsal path.
+EMAIL_MODE_DRAFT: Final[str] = "draft"
+#: Actually deliver. Rule #32 requires a counted game to be reported for real.
+EMAIL_MODE_SEND: Final[str] = "send"
+
 # --- Canonical serialization (rulebook ch. 5.3) -----------------------------
 #: Separators guaranteeing byte-identical JSON on both peers before hashing.
 CANONICAL_SEPARATORS: Final[tuple[str, str]] = (",", ":")

@@ -1,0 +1,30 @@
+# Line-ending policy — LF in the repository, always.
+#
+# Two peers audit each other by re-hashing byte-exact content, and the vendored
+# interop fixtures under tests/vectors/ are byte-exact by definition. A working
+# tree silently converted to CRLF (Windows editor, OneDrive sync) rewrites every
+# one of those files and buries real commits under a whole-repo diff. Normalising
+# here means the bytes in a commit are the bytes both teams reason about,
+# regardless of whose laptop produced them.
+
+# Default: git decides what is text, and text is stored and checked out as LF.
+* text=auto eol=lf
+
+# Explicit text types (belt and braces for the files that matter most).
+*.py    text eol=lf
+*.md    text eol=lf
+*.json  text eol=lf
+*.toml  text eol=lf
+*.txt   text eol=lf
+*.cfg   text eol=lf
+*.ipynb text eol=lf
+*.lock  text eol=lf
+.env-example text eol=lf
+
+# Binary: never touch these.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.pdf binary
+*.ico binary

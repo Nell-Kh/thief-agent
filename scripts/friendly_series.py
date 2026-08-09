@@ -86,6 +86,7 @@ from police_thief.services.match_runtime import MatchRuntime  # noqa: E402
 from police_thief.services.series_guard import (  # noqa: E402
     CONTAINED_FAILURES,
     archive_previous_run,
+    containment_alarm,
     failure_reason,
     load_rows,
     save_rows,
@@ -301,6 +302,10 @@ def main() -> None:
         # the series, never the games already won.
         save_rows(artifacts, rows)
         role = other_role(role)
+
+    alarm = containment_alarm(rows)
+    if alarm:
+        print(f"\n{alarm}")
 
     result = result_payload(
         game_uid=ids[1], game_id=ids[0], links=links, timezone=args.timezone,

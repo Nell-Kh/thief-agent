@@ -81,6 +81,60 @@ def technical_loss_row(
     }
 
 
+def contained_failures(rows: list[dict[str, Any]]) -> list[str]:
+    """The reasons of the rows that were absorbed as technical losses.
+
+    A contained row is exactly the one :func:`technical_loss_row` builds, and
+    the marker is its ``audit.reason`` note: a sub-game that really played
+    records no reason, because nothing needed excusing.
+    """
+    return [
+        str(reason)
+        for row in rows
+        if row.get("result") == "technical_loss"
+        and (reason := (row.get("audit") or {}).get("reason"))
+    ]
+
+
+def containment_alarm(rows: list[dict[str, Any]]) -> str | None:
+    """A loud operator warning when contained failures dominate the series.
+
+    Containment is right per sub-game - one dead tunnel must not cost the other
+    five - but it is the wrong lens on a whole series. A single opponent
+    failing every single time is far less likely than a fault on our own side,
+    and because each containment prints only a quiet line and then scores a
+    normal-looking technical loss, a broken driver otherwise finishes with a
+    tidy summary and no alarm at all. That is exactly how the ``next_step``
+    crash produced a clean 2-2 series report while the opponent lay dead.
+
+    Returns ``None`` when the series looks healthy. This warns only: it never
+    raises, and it never touches a byte of any artifact, because the report
+    must stay honest about what actually happened.
+    """
+    if not rows:
+        return None
+    reasons = contained_failures(rows)
+    if len(reasons) * 2 <= len(rows):
+        return None
+    every = len(reasons) == len(rows)
+    scope = "EVERY sub-game" if every else f"{len(reasons)} of {len(rows)} sub-games"
+    distinct = sorted(set(reasons))
+    lines = [
+        "!" * 72,
+        f"WARNING: {scope} ended as a CONTAINED technical loss.",
+        "",
+        "This almost certainly indicates a bug on OUR side, not the opponent's.",
+        "An opponent who fails this consistently is far less likely than a fault",
+        "in our own driver, config or network setup. Investigate before playing a",
+        "counted series - the result below is honest, but it is probably our fault.",
+        "",
+        f"distinct failure reasons seen ({len(distinct)}):",
+        *(f"  - {reason}" for reason in distinct),
+        "!" * 72,
+    ]
+    return "\n".join(lines)
+
+
 def checkpoint_path(artifacts: str | Path) -> Path:
     """Where a series keeps its recoverable row log."""
     return Path(artifacts) / CHECKPOINT_NAME

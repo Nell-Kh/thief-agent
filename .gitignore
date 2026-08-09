@@ -27,6 +27,9 @@ results/*.tmp
 # Local sync scratch (git bundles used to mirror the dev environment)
 .sync/
 
+# Local agent workspace
+.claude/
+
 # OS / editor
 .DS_Store
 .idea/

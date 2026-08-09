@@ -611,6 +611,118 @@ with a meaningful message.
 | 10.49 | Maintain `unit/test_shared/test_gatekeeper.py` (7 tests) green under every refactor | P0 | team | ✔ |
 | 10.50 | Maintain `unit/test_shared/test_version.py` (11 tests) green under every refactor | P0 | team | ✔ |
 
+## Phase 11 — Adversarial review remediation (`docs/REVIEW_HOSTILE.md`)
+
+External hostile review, run against the two PDFs rather than against `docs/COMPLIANCE.md`.
+Findings are transcribed here verbatim in severity order. Every row carries the rule number or
+guideline section it answers to, so a closed row can be checked against the source and not
+against a claim in this file.
+
+**Ground rules for this phase.** A row is ✔ only when the artifact on disk proves it — not when
+the code that would produce the artifact exists. 11.3 in particular cannot be closed by editing
+any file in this repository.
+
+### 11.1 — BLOCKERS (submission gate; these fail before any code is read)
+
+| # | Task | Priority | Owner | Status |
+|---|---|---|---|---|
+| 11.1 | **Submission blockers — the six gates that fail independently of code quality** | P0 | team | ☐ |
+| 11.1.1 | Split the dev repo into `police-agent` and `thief-agent`, both accessible to the lecturer (rule #49, App. ג) | P0 | team | ☐ |
+| 11.1.2 | Cross-link the two READMEs: cop README → thief repo, thief README → cop repo (rule #49) | P0 | team | ☐ |
+| 11.1.3 | Fix `repos = { cop = …, thief = … }` in BOTH per-peer TOMLs — currently the same URL twice, so the report's four-link block ships two duplicates (rule #49) | P0 | team | ☐ |
+| 11.1.4 | Fill `README.md` §11 with the two real URLs, replacing `TBD — task 8.19` | P0 | team | ☐ |
+| 11.1.5 | Carry `README`, `config/`, all `PRD_*`, `PLAN.md`, `TODO.md` into both repos (rule #50) | P0 | team | ☐ |
+| 11.1.6 | Point `[email] recipient` at `rmisegal+uoh26finalgame@gmail.com` in both TOMLs — today `_is_armed()` correctly disarms every report, so 100 % of games score `counted: false` (rules #32/#51) | P0 | team | ☐ |
+| 11.1.7 | Add a preflight assertion that refuses to start a counted series when `recipient != AGENT_REPORT_ADDRESS`, so the misconfiguration cannot recur silently | P1 | team | ☐ |
+| 11.1.8 | Un-ignore the four lifecycle artifacts: narrow `.gitignore:24,34,35` to scratch only (`*.tmp`, `rows_checkpoint.json`, `*.superseded-*`) — App. ו Mandatory Rules #4 requires every game's config file in the repo | P0 | team | ☐ |
+| 11.1.9 | Commit `declaration_*.json`, `config_*_gNN.json`, `log_*_gNN.json`, `result_*.json` for every counted game (rule #50, ch. 9.3.3) | P0 | team | ☐ |
+| 11.1.10 | Verify with `git ls-files results/ logs/` that the artifacts are actually tracked — today it returns only `results/.gitkeep` | P0 | team | ☐ |
+| 11.1.11 | Commit the working tree: 30+ modified tracked files including all of `config/`, `README.md`, `COMPLIANCE.md`. A dirty tree makes the sealed Step-0 commit hash a false declaration (rules #53/#38) | P0 | team | ☐ |
+| 11.1.12 | Create and push the annotated tag `v1.0-submission` on both repos (rule #41, App. ג checklist) | P0 | team | ☐ |
+| 11.1.13 | Verify the tag with `git show v1.0-submission` and confirm it points at the commit that actually played | P1 | team | ☐ |
+
+### 11.2 — Interop landmines (each zeroes US **and** an innocent opponent under rule #35/#19)
+
+| # | Task | Priority | Owner | Status |
+|---|---|---|---|---|
+| 11.2 | **The kit-vs-book bet, made explicit and made reversible** | P0 | team | ☐ |
+| 11.2.1 | Write the bet down in `README.md` §8: the project adopts `copthief-league-protocol` conventions over the printed book in four places. The book's academic-freedom clause permits this ONLY if the contradiction, the choice and the reason are all stated | P0 | team | ☐ |
+| 11.2.2 | Add `[interop] profile = "kit" \| "book"` to the per-peer TOML, defaulting to `kit`, covering all four deviations below | P0 | team | ☐ |
+| 11.2.3 | **Seal format.** `crypto.digest_of` computes `sha256(canonical(payload) + "\|" + nonce)`; the book ch. 5.3.1 prints the nonce INSIDE the JSON. Against a book-literal opponent every step fails the audit in both directions (rule #19). Implement the book variant behind the profile switch | P0 | team | ☐ |
+| 11.2.4 | **Scent clamp.** `scent.ScentField.advance` applies `min(ceiling, …)`; the book ch. 4.3 formula has only `max(0, …)`. It bites on the first re-emission (`0.9·0.9+0.9 = 1.71 → 0.9`) and the grid crosses the wire as `smell_grid`. Implement the unclamped variant behind the profile switch | P0 | team | ☐ |
+| 11.2.5 | **Consensus serialization.** `consensus.serialize_spaced` uses `(", ", ": ")` while every other hash is compact. Implement the compact variant behind the profile switch | P0 | team | ☐ |
+| 11.2.6 | **Tie-award semantics.** `consensus.series_aggregate` ADDS `tie_score` into `total_score`, which sits inside the settlement scope. App. ו table 17 reads as the score *for* a tie, not a bonus on top. Implement substitution behind the profile switch and declare the ambiguity in the report | P0 | team | ☐ |
+| 11.2.7 | Remove `pheromone_min_center_intensity` from `config/game.json` and from the 14 signed terms, or make `validate_terms` tolerate its absence. A book-conformant opponent has 13 keys to our 14 → handshake refused (App. ב: field names are fixed and binding) | P0 | team | ☐ |
+| 11.2.8 | Remove the extra top-level `"version"` key from `config/game.json` (not in the App. ב listing) | P1 | team | ☐ |
+| 11.2.9 | Decide `map_area`: App. ו says a negotiable parameter defaults to the printed example (`"New York"`) absent explicit agreement. `"Haifa"` is a signed term (`setting`) and refuses a kit-naive opponent. Either revert the default or negotiate it in writing before every series | P1 | team | ☐ |
+| 11.2.10 | Wire `mutual_agreement.confirmed` to the real audit outcome — `reports.py:128` hardcodes `True` and nothing anywhere sets it `False`, so the report asserts agreement with an opponent that may not exist (rules #35/#38) | P0 | team | ☐ |
+| 11.2.11 | Stop calling unkeyed hashes "signatures". `interop.sign_terms` and `report_blocks.group_block` are `sha256` over data that travels beside them; the `"terms signature does not verify"` branch is unreachable for any well-formed greeting. Either implement keyed signing (book ch. 5.5 says "מפתח המסופק מראש") or rename to `*_sha256` and state the scope decision in the report | P1 | team | ☐ |
+| 11.2.12 | Negotiate turn order. `engine.py:8` hardcodes cop-first and correctly notes the book does not fix one — but it is absent from the 14 signed terms AND from `negotiate_extras`, so two peers with opposite orders shake hands and then disagree about the board. Add it to the declarations or prove in the report that the turn-token makes it unobservable | P1 | team | ☐ |
+| 11.2.13 | Replace `engine.end_turn`'s `min(threshold, ceiling)` with `survival_threshold` alone. Both are "minimum"-status params negotiable upward independently; if they ever differ we declare survival early and a book-literal opponent does not → divergent winner, rule #35 | P1 | team | ☐ |
+| 11.2.14 | Add a regression test per deviation asserting BOTH profiles produce their intended digest, so a future refactor cannot collapse them | P1 | team | ☐ |
+
+### 11.3 — League conduct (cannot be closed by editing this repository)
+
+| # | Task | Priority | Owner | Status |
+|---|---|---|---|---|
+| 11.3 | **Play real opponents** — every artifact in `results/` is currently self-play | P0 | team | ⏱ |
+| 11.3.1 | Run `scripts/friendly_series.py` against a real external team as a warm-up (rule #52 permits uncounted friendlies) | P0 | team | ⏱ |
+| 11.3.2 | Play counted series #1 against a real team: 6 sub-games, clean audits, both sides mail their own report (rules #31/#35) | P0 | team | ⏱ |
+| 11.3.3 | Play counted series #2 against a DIFFERENT team — `min_games_to_pass = 2`, and without it there is no passing grade at all (rule #31) | P0 | team | ⏱ |
+| 11.3.4 | Confirm both opponents' reports reached the league inbox and agree with ours field-for-field (rule #35 zeroes both teams on a contradiction) | P0 | team | ⏱ |
+| 11.3.5 | Replace `agreed_between: ["YANELL11", "OPPONENT-TBD"]` with the real counterparty per series | P0 | team | ☐ |
+| 11.3.6 | Purge `TEAM-TBD` / `id-TBD` / `github.com/TBD/…` placeholders from every committed artifact | P1 | team | ☐ |
+| 11.3.7 | Run `shared/preflight.py` against each opponent's `game.json` the night before, per the review's own recommendation | P1 | team | ☐ |
+
+### 11.4 — Security
+
+| # | Task | Priority | Owner | Status |
+|---|---|---|---|---|
+| 11.4 | **Secrets hygiene** — git history verified clean; the exposure is at rest | P0 | team | ☐ |
+| 11.4.1 | Rotate `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GMAIL_APP_PASSWORD`, `MCP_AUTH_TOKEN` in `.env` — all four were readable in plaintext during review | P0 | team | ☐ |
+| 11.4.2 | Revoke and re-issue `token.json` (live OAuth access token) and the `credentials.json` OAuth client | P0 | team | ☐ |
+| 11.4.3 | Move the repo out of `OneDrive\Desktop`, or add it to OneDrive's exclusion list — the four secrets are currently synced to Microsoft's cloud | P0 | team | ☐ |
+| 11.4.4 | Re-verify after the move: `git log --all` tree sweep shows no secret ever committed (confirmed clean at review time — keep it that way) | P1 | team | ☐ |
+
+### 11.5 — Documentation honesty
+
+| # | Task | Priority | Owner | Status |
+|---|---|---|---|---|
+| 11.5 | **`docs/COMPLIANCE.md` misquotes its own codebase** — six of six spot-checked cells were wrong | P1 | team | ☐ |
+| 11.5.1 | Rule #23 cites `negotiation.scent_lock_for` — no such symbol exists. Correct to `interop.scent_model_lock` / `scent.lock_sha256` | P1 | team | ☐ |
+| 11.5.2 | Rule #46 cites `_apply_barrier` as the engine's; that name lives in `services/turn_receiving.py`, the engine's is `_place_barrier` | P1 | team | ☐ |
+| 11.5.3 | Rule #47 says `is_trapped` is checked in `engine.end_turn`; it is checked in `_check_termination` | P1 | team | ☐ |
+| 11.5.4 | Rule #49 cites `result_payload(repositories=…)` — no such parameter; it is `links` | P1 | team | ☐ |
+| 11.5.5 | Rule #54 cites `result_payload(tokens_total=…)` — no such parameter; the total is derived from rows | P1 | team | ☐ |
+| 11.5.6 | Correct the counts: "689 tests" and "613 tests" both appear; actual is 699. `.gitignore` "lines 2–5" is 2–6. "largest src file `turn_taking.py`, 92 code lines" is `series_guard.py`, 102 | P1 | team | ☐ |
+| 11.5.7 | Generate the rule→symbol references mechanically (or drop them) so the matrix cannot drift again | P2 | team | ☐ |
+| 11.5.8 | Update rule #45's status — the 8-char code `YANELL11` already exists; the row still says "to be finalized" | P2 | team | ☐ |
+| 11.5.9 | Fold `docs/REVIEW_HOSTILE.md` into the documentation index in `README.md` §"Documentation index" | P2 | team | ☐ |
+
+### 11.6 — Guidelines compliance
+
+| # | Task | Priority | Owner | Status |
+|---|---|---|---|---|
+| 11.6 | **Residual guideline debt** | P1 | team | ☐ |
+| 11.6.1 | Split `src/police_thief/services/series_guard.py` — 160 lines under the guidelines' own plain wording (§3.2: blanks and comments excluded, docstrings NOT mentioned as excluded). Clean seam: checkpointing ↔ containment | P1 | team | ☐ |
+| 11.6.2 | Note the counting-rule tension in `test_file_size_law.py`: guidelines p.24 lists "קבצים עד 150 שורות קוד, הערות ו-docstrings", which cuts against excluding docstrings. Our test currently exempts the one `src/` file that fails the plain reading | P1 | team | ☐ |
+| 11.6.3 | Split `scripts/build_notebook.py` (514 code lines), `scripts/friendly_series.py` (291), `scripts/sparring_series.py` (227) — over the cap on ANY reading, currently on the `KNOWN_OVER_LIMIT` debt list | P1 | team | ☐ |
+| 11.6.4 | Fix `shared/sysinfo.py` on Windows: `_cpu_frequency_mhz` reads `/proc/cpuinfo` and `_total_ram_gb` uses `os.sysconf`, both Linux-only, so the sealed declaration ships `cpu_mhz: 0.0, ram_gb: 0.0` on our actual machine. Rule #24's sanction is loss of the computational-fairness bonus, and it is a false declaration besides | P1 | team | ☐ |
+| 11.6.5 | Add a test asserting the hardware spec has non-zero CPU and RAM on the platform that will actually play | P1 | team | ☐ |
+| 11.6.6 | Resolve `config/rate_limits.json`'s dead `anthropic` and `default` blocks — read by no code path (self-admitted, ADR-3). Wire them or delete them (guidelines §7.2) | P2 | team | ☐ |
+| 11.6.7 | Complete the `tests/` docstring sweep still owed from the 8.18 pass | P2 | team | ☐ |
+
+### 11.7 — Strengths to defend rather than fix
+
+| # | Task | Priority | Owner | Status |
+|---|---|---|---|---|
+| 11.7 | **Make the genuinely strong work visible to the grader** | P2 | team | ☐ |
+| 11.7.1 | Foreground `domain/audit.py`'s trajectory layer in `README.md` — a hash-clean log that teleports or crosses a barrier still fails, which the reference implementation does not do | P2 | team | ☐ |
+| 11.7.2 | Foreground `test_hostile_wire.py` + `_disclosed_records` structural hardening: a malicious peer forfeits instead of crashing us | P2 | team | ☐ |
+| 11.7.3 | Foreground `series_guard.containment_alarm()` — a warning that accuses our own driver first when every sub-game contains | P2 | team | ☐ |
+| 11.7.4 | Foreground `report_blocks._is_armed()` as the fail-safe that keeps a recipient misconfiguration from becoming a rule-#38 false claim | P2 | team | ☐ |
+| 11.7.5 | Foreground `shared/preflight.py` — finding a handshake refusal the night before instead of at kickoff | P2 | team | ☐ |
+
 ## Test Accounting (delivery + capture-final work, from the 580 baseline to 588)
 - `tests/interop/test_kit_vectors.py`: +3 (`test_delivery_contract_arrivals`, `test_no_reorder_window`, `test_buffered_steps_replay_in_order`)
 - `tests/unit/test_services/test_concession.py`: +2 (`test_the_police_accepts_the_new_kit_shape_concession`, `test_a_claim_response_from_the_police_is_a_violation`)
@@ -634,3 +746,6 @@ with a meaningful message.
 - **M6** commit→reveal verifies; Step-0 seals hardware and the commit hash.
 - **M7** Gmail summary sent; live GUI shows local truth; replay stamps Verified OK.
 - **M8** both submission repos tagged, cross-linked, checklist clean.
+- **M9** Phase 11 clear: the six submission blockers closed, the kit-vs-book bet declared and
+  reversible behind `[interop] profile`, secrets rotated, and two counted series played against
+  two different real teams with both sides' reports agreeing field-for-field.

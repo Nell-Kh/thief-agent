@@ -48,6 +48,16 @@ class InboundHandler:
         return self._reorder.reorder_window
 
     @property
+    def next_step(self) -> int:
+        """The step number this peer is still waiting for.
+
+        Read-only, and delegated like every other view onto the reorder buffer.
+        The series drivers name it when a turn wait times out, so the operator
+        is told *which* step went missing rather than just that one did.
+        """
+        return self._reorder.next_step
+
+    @property
     def turns(self) -> list[TurnMessage]:
         """Turn messages accepted and ready for processing, in step order."""
         return self._reorder.turns

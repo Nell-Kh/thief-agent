@@ -88,6 +88,18 @@ def test_a_turn_is_queued_and_its_commitment_recorded(handler: InboundHandler) -
     assert handler.next_turn() is None
 
 
+def test_next_step_reports_the_step_still_awaited(handler: InboundHandler) -> None:
+    """The series drivers name this step when a turn wait times out.
+
+    It is read straight off the reorder buffer. The drivers referenced it before
+    the handler exposed it, which crashed ``play_networked`` with an
+    ``AttributeError`` on the very first turn of every sub-game.
+    """
+    assert handler.next_step == 1
+    handler.receive_turn(turn_wire(step=1))
+    assert handler.next_step == 2
+
+
 def test_a_turn_from_the_wrong_role_is_refused(handler: InboundHandler) -> None:
     with pytest.raises(HandshakeRejectedError, match="expected a turn from 'thief'"):
         handler.receive_turn(turn_wire(sender="police"))

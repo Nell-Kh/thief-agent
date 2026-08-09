@@ -5,8 +5,11 @@ each action against the rules, applies it, and then asks whether the mini-game
 has ended. Both peers run this same engine over the same signed contract, so
 they reach identical conclusions without a referee.
 
-Turn order is **cop first, then thief** - a documented choice (the rulebook does
-not fix one), applied identically on both sides so the two logs agree.
+Turn order is **cop first, then thief** - a free choice, since the rulebook does
+not fix one. It is not a *local* choice, though: two peers on opposite orders
+shake hands, play, and then disagree about the board, producing hash-clean logs
+with divergent histories. It is therefore declared at the handshake
+(``shared.interop_profile.TURN_ORDER``) where a difference refuses.
 """
 
 from __future__ import annotations
@@ -101,13 +104,21 @@ class Engine:
             state.outcome = capture(scoring, "the thief has no legal move left")
 
     def end_turn(self, state: GameState) -> None:
-        """Close a full turn (both agents have acted) and test for survival."""
+        """Close a full turn (both agents have acted) and test for survival.
+
+        Survival is decided by ``survival_threshold`` alone. It used to be
+        ``min(survival_threshold, max_moves)``, which is invisible while both
+        are 35 but wrong the moment they differ: both carry "minimum" status in
+        App. F and may be negotiated upward independently, and taking the
+        smaller would declare survival early while a peer reading the threshold
+        literally plays on. That is a hash-clean log with a divergent winner -
+        rule #35, and a zero for both teams. ``max_moves`` remains the step
+        ceiling; it simply does not decide who won.
+        """
         if state.finished:
             return
         state.step += 1
-        threshold = self._contract.movement.survival_threshold
-        ceiling = self._contract.movement.max_moves
-        if state.step >= min(threshold, ceiling):
+        if state.step >= self._contract.movement.survival_threshold:
             state.outcome = survival(
                 self._contract.scoring,
                 f"the thief survived {state.step} steps without capture",

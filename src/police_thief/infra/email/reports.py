@@ -17,7 +17,13 @@ from __future__ import annotations
 from typing import Any
 
 from ...shared.config_io import sha256_of
-from .consensus import mutual_agreement_hash, mutual_agreement_scope, series_aggregate
+from ...shared.interop_profile import DEFAULT, InteropProfile
+from .consensus import (
+    mutual_agreement_hash,
+    mutual_agreement_scope,
+    series_aggregate,
+    settlement_confirmed,
+)
 from .naming import config_file_name
 from .report_blocks import _is_armed, league_block
 
@@ -90,7 +96,7 @@ def result_payload(
     *, game_uid: str, game_id: str, links: dict[str, Any], timezone: str,
     group_ids: list[str], sub_games: list[dict[str, Any]], tie_score: int,
     games_played: dict[str, int | None], first_meeting: bool, recipient: str,
-    counted: bool = True,
+    counted: bool = True, profile: InteropProfile = DEFAULT,
 ) -> dict[str, Any]:
     """The final result report - the mandatory JSON mailed to the league address.
 
@@ -100,7 +106,7 @@ def result_payload(
     counted claim did not arm (recipient mismatch). ``games_played`` holds each
     group's own inclusive count; an opponent's untold count rides as ``None``.
     """
-    aggregate = series_aggregate(sub_games, tie_score=tie_score)
+    aggregate = series_aggregate(sub_games, tie_score=tie_score, profile=profile)
     winner = aggregate["winner_group"]
     armed = _is_armed(counted, recipient)
     return {
@@ -123,8 +129,8 @@ def result_payload(
         },
         "mutual_agreement": {
             "sha256": mutual_agreement_hash(
-                mutual_agreement_scope(game_id, sub_games, aggregate)
+                mutual_agreement_scope(game_id, sub_games, aggregate), profile
             ),
-            "confirmed": True,
+            "confirmed": settlement_confirmed(sub_games),
         },
     }

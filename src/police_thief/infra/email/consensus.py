@@ -120,6 +120,29 @@ def series_aggregate(
     }
 
 
+def settlement_confirmed(sub_games: list[dict[str, Any]]) -> bool:
+    """Whether every sub-game actually reached an audited, untampered verdict.
+
+    ``mutual_agreement.confirmed`` used to be the literal ``True``, which meant
+    the report asserted the opponent had agreed even when no opponent existed -
+    the committed self-play artifacts claim it against a process we spawned
+    ourselves. Rule #35 makes agreement a precondition for scoring and rule #38
+    disqualifies a false declaration, so this is the one field in the report
+    that must never be optimistic.
+
+    A contained sub-game (dead tunnel, timeout) carries ``log_verified: false``
+    because no disclosure was ever audited. That is not a forgery, but it is
+    also not agreement, so it correctly refuses to confirm.
+    """
+    if not sub_games:
+        return False
+    return all(
+        bool((row.get("audit") or {}).get("log_verified"))
+        and not bool((row.get("audit") or {}).get("tampered"))
+        for row in sub_games
+    )
+
+
 def mutual_agreement_scope(
     game_id: str, sub_games: list[dict[str, Any]], aggregate: dict[str, Any]
 ) -> dict[str, Any]:

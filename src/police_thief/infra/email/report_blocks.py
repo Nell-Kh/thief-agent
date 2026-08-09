@@ -48,7 +48,15 @@ def links_block(game_id: str, github: dict[str, Any]) -> dict[str, Any]:
 
 
 def group_block(**fields: Any) -> dict[str, Any]:
-    """One team's declaration block, signed sign-then-insert over its canonical form.
+    """One team's declaration block, hashed hash-then-insert over its canonical form.
+
+    The ``signature`` key keeps its name because that is the wire format the
+    league reads, but it is a **checksum, not a signature**: an unkeyed SHA-256
+    over data that travels in the same document, so any party can recompute it.
+    It detects a block corrupted or edited in transit; it cannot prove who wrote
+    one. Book ch. 5.5 asks for signing under a pre-supplied key, which this
+    project does not implement - stated plainly in README section 8 rather than
+    left to be inferred from the field name.
 
     Expected fields: group_id, group_name, members, repos, mcp_servers, llm_model,
     hardware_spec, github_commit, counted_games_played (the PRIOR count), code_version.

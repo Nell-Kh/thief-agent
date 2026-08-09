@@ -52,6 +52,13 @@ TIE_AWARD_SUBSTITUTE: Final[str] = "substitute"
 
 TIE_AWARDS: Final[tuple[str, ...]] = (TIE_AWARD_ADD, TIE_AWARD_SUBSTITUTE)
 
+#: Who acts first within a full turn. The book genuinely does not fix one, so
+#: this is a free choice - but it is not a LOCAL one. Two peers on opposite
+#: orders shake hands, play, and then disagree about the board, which is a
+#: hash-clean log with a divergent history. Declared so the disagreement
+#: surfaces at the handshake; ``domain.engine`` applies it.
+TURN_ORDER: Final[str] = "cop_first"
+
 
 class InteropProfileError(ValueError):
     """Raised when a configured dialect or tie-award value is not recognised."""
@@ -128,7 +135,11 @@ class InteropProfile:
         and closed, and adding a key there would break the signature for every
         peer that computes it correctly.
         """
-        return {"interop_profile": self.name, "tie_award": self.tie_award}
+        return {
+            "interop_profile": self.name,
+            "tie_award": self.tie_award,
+            "turn_order": TURN_ORDER,
+        }
 
 
 def resolve(name: str | None = None, tie_award: str | None = None) -> InteropProfile:

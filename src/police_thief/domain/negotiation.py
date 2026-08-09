@@ -100,6 +100,7 @@ def _check_dialect(theirs: dict[str, Any], ours: dict[str, Any]) -> None:
     for field, label in (
         ("interop_profile", "interop dialect"),
         ("tie_award", "tie-award semantics"),
+        ("turn_order", "turn order within a full turn"),
     ):
         their_value, our_value = theirs.get(field), ours.get(field)
         if isinstance(their_value, str) and their_value and their_value != our_value:

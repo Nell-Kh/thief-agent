@@ -14,14 +14,22 @@ from __future__ import annotations
 
 from typing import Any
 
-from .consensus import mutual_agreement_hash, mutual_agreement_scope, series_aggregate
+from ...shared.interop_profile import DEFAULT, InteropProfile
+from .consensus import (
+    mutual_agreement_hash,
+    mutual_agreement_scope,
+    series_aggregate,
+    settlement_confirmed,
+)
 
 
 class ResultInconsistencyError(ValueError):
     """Raised when a result payload's own numbers do not reconcile."""
 
 
-def validate_result_payload(result: dict[str, Any], tie_score: int) -> None:
+def validate_result_payload(
+    result: dict[str, Any], tie_score: int, profile: InteropProfile = DEFAULT
+) -> None:
     """Re-derive every aggregate from the rows and refuse any mismatch.
 
     Args:
@@ -42,7 +50,7 @@ def validate_result_payload(result: dict[str, Any], tie_score: int) -> None:
             f"num_sub_games {result['num_sub_games']} != {len(rows)} rows"
         )
 
-    expected = series_aggregate(rows, tie_score=tie_score)
+    expected = series_aggregate(rows, tie_score=tie_score, profile=profile)
     for key in ("total_score", "sub_games_won", "ties", "winner_group", "series_tie"):
         if final.get(key) != expected[key]:
             raise ResultInconsistencyError(
@@ -66,9 +74,17 @@ def validate_result_payload(result: dict[str, Any], tie_score: int) -> None:
             )
 
     scope = mutual_agreement_scope(result["game_id"], rows, expected)
-    recomputed = mutual_agreement_hash(scope)
+    recomputed = mutual_agreement_hash(scope, profile)
     claimed = result.get("mutual_agreement", {}).get("sha256")
     if claimed != recomputed:
         raise ResultInconsistencyError(
             f"mutual_agreement.sha256 {claimed} does not match the rows ({recomputed})"
+        )
+
+    confirmed = bool(result.get("mutual_agreement", {}).get("confirmed"))
+    if confirmed != settlement_confirmed(rows):
+        raise ResultInconsistencyError(
+            f"mutual_agreement.confirmed is {confirmed}, but the rows derive "
+            f"{settlement_confirmed(rows)} - a report may never claim an agreement "
+            f"its own audit results do not support (rules #35/#38)"
         )

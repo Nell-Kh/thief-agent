@@ -11,6 +11,7 @@ Two wrappers implement the rulebook's cost discipline:
 
 from __future__ import annotations
 
+from ...shared.bucket import TokenBucket
 from .base import HintProvider, HintRequest, ProviderError
 from .ledger import TokenLedger
 from .template import TemplateProvider
@@ -75,22 +76,60 @@ class BudgetGuard(HintProvider):
         return self._inner.generate(request)
 
 
+class RateLimitedProvider(HintProvider):
+    """Refuse a paid call that would exceed the configured requests-per-minute.
+
+    The token budget and this limit answer different questions - "have we spent
+    too much in total?" versus "are we calling too fast right now?" - and only
+    the first was enforced. That left `config/rate_limits.json`'s ``anthropic``
+    block read by no code path at all: configuration that looked like a control
+    and was not one (ADR-3; the guidelines' no-hardcoded-values rule cuts both
+    ways, and a limit nothing reads is the mirror image of a hardcoded one).
+
+    Refusing raises :class:`ProviderError`, so the surrounding fallback turns a
+    burst into a free template hint rather than a failed turn or a 429.
+    """
+
+    name = "rate_limited"
+
+    def __init__(self, inner: HintProvider, bucket: TokenBucket) -> None:
+        """Wrap a paid provider with the outgoing-request bucket."""
+        self._inner = inner
+        self._bucket = bucket
+        self.refusals = 0
+
+    def generate(self, request: HintRequest) -> str:
+        """Spend a token and delegate, or fail into the fallback.
+
+        Raises:
+            ProviderError: when the per-minute allowance is exhausted.
+        """
+        if not self._bucket.allow():
+            self.refusals += 1
+            raise ProviderError("verbal-layer rate limit reached; using the template")
+        return self._inner.generate(request)
+
+
 def build_provider(
     provider_name: str,
     every_n_steps: int,
     ledger: TokenLedger,
     model: str = "",
     timeout_sec: float = 10.0,
+    requests_per_minute: int | None = None,
 ) -> HintProvider:
     """Assemble the provider chain the private TOML selects.
 
     ``template`` stands alone. Every paid mode is wrapped as:
-    throttle(budget_guard(paid), template) inside a final fallback to the
-    template - the guarantees compose.
+    throttle(rate_limit(budget_guard(paid)), template) inside a final fallback
+    to the template - the guarantees compose, and no paid call escapes all three.
 
     Args:
         timeout_sec: wall-clock ceiling on one paid request, so a stalled
             network can never hold a turn past the opponent's watchdog.
+        requests_per_minute: outgoing-call ceiling from ``config/rate_limits.json``.
+            ``None`` leaves the chain unlimited, which is what the pure-template
+            path and most tests want.
     """
     template = TemplateProvider()
     if provider_name == "template":
@@ -109,6 +148,8 @@ def build_provider(
         paid = ClaudeCliProvider(ledger=ledger)
     else:
         raise ValueError(f"unknown verbal provider {provider_name!r}")
-    guarded = BudgetGuard(paid, ledger)
+    guarded: HintProvider = BudgetGuard(paid, ledger)
+    if requests_per_minute:
+        guarded = RateLimitedProvider(guarded, TokenBucket.per_minute(requests_per_minute))
     throttled = ThrottledProvider(guarded, template, every_n_steps)
     return FallbackProvider(throttled, template)

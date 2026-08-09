@@ -11,6 +11,21 @@ same guidelines mandate one on every module, class and function - a counting
 rule that punished writing them would pull the two requirements against each
 other.
 
+**The guidelines are not unambiguous about this, and we should say so.** §3.2
+says "no code file shall exceed 150 lines of code (blank lines and comment lines
+are not counted)" - which excludes comments and is silent on docstrings, the
+reading applied here. But the quick-reference card on p.24 lists "files up to
+150 lines of code, comments and docstrings", which reads the other way. An
+external review pointed out, fairly, that the lenient reading was exempting the
+one `src/` file that failed the stricter one.
+
+So both are now measured, and the difference is deliberately small:
+``MAX_CODE_LINES`` governs the rule, while
+:func:`test_no_source_file_is_over_the_cap_under_the_stricter_reading` reports
+the plain-wording count too. `services/series_guard.py` - the file that prompted
+this - was split into containment and :mod:`services.series_checkpoint` so it
+passes under BOTH readings rather than under the one we happened to pick.
+
 ``KNOWN_OVER_LIMIT`` is a shrinking list, not an escape hatch: a file may only
 sit in it while its split is an open decision, and the second test fails if an
 entry has quietly come back under the cap, so the list cannot outlive the debt.
@@ -86,6 +101,36 @@ def test_every_file_obeys_the_150_code_line_law() -> None:
     assert not over, (
         f"over the {MAX_CODE_LINES}-code-line cap: {over} - split them rather than "
         "compressing them (guidelines ch. 3.2)"
+    )
+
+
+def plain_lines(path: Path) -> int:
+    """The guidelines' literal §3.2 count: no blanks, no comments, docstrings kept."""
+    return sum(
+        1
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    )
+
+
+def test_no_source_file_is_over_the_cap_under_the_stricter_reading() -> None:
+    """`src/` must pass the plain wording too, not just the reading we chose.
+
+    §3.2 excludes blanks and comments and is silent on docstrings; the p.24
+    quick-reference card counts docstrings in. Rather than argue for the lenient
+    reading, every shipped module satisfies both - so the interpretation stops
+    being load-bearing. Scoped to `src/`: `tests/` and `scripts/` carry far more
+    prose per statement, and the cap exists to keep production modules small.
+    """
+    over = {
+        relative: counted
+        for path in python_files()
+        if (relative := path.relative_to(REPO_ROOT).as_posix()).startswith("src/")
+        and (counted := plain_lines(path)) > MAX_CODE_LINES
+    }
+    assert not over, (
+        f"over {MAX_CODE_LINES} lines under the guidelines' plain wording "
+        f"(docstrings counted): {over} - split, do not compress"
     )
 
 

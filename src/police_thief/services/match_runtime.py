@@ -32,6 +32,25 @@ from .turn_taking import take_turn
 from .world_view import WorldView
 
 
+def _verbal_rate_limit(path: str = "config/rate_limits.json") -> int | None:
+    """The verbal layer's requests-per-minute ceiling, from configuration.
+
+    Closes the gap that left `config/rate_limits.json`'s ``anthropic`` block
+    read by no code path: a configured limit that controlled nothing. Returns
+    ``None`` when the file or the entry is absent, so a checkout without the
+    config still plays - unlimited, but never crashing on a missing limit.
+    """
+    from ..shared.config_io import ConfigError, read_json
+
+    try:
+        services = read_json(path)["rate_limits"]["services"]
+    except (ConfigError, KeyError, TypeError):
+        return None
+    entry = services.get("anthropic") or services.get("default") or {}
+    limit = entry.get("requests_per_minute")
+    return int(limit) if limit else None
+
+
 class MatchRuntime(MatchReporting):
     """One peer's engine for a complete networked mini-game."""
 
@@ -50,6 +69,7 @@ class MatchRuntime(MatchReporting):
             ledger=self.ledger,
             model=str(config.private_value("llm", "model", "")),
             timeout_sec=float(config.private_value("llm", "step_deadline_seconds", 10)),
+            requests_per_minute=_verbal_rate_limit(),
         )
         self.book = Logbook(game_id, sub_game, config.role)
         self.policy = policy_from_config(config)

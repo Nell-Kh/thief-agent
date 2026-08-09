@@ -5,7 +5,13 @@ hint, under the signed word cap, with every model token metered.
 """
 
 from .base import HintProvider, HintRequest, ProviderError, clip_words
-from .chain import BudgetGuard, FallbackProvider, ThrottledProvider, build_provider
+from .chain import (
+    BudgetGuard,
+    FallbackProvider,
+    RateLimitedProvider,
+    ThrottledProvider,
+    build_provider,
+)
 from .ledger import TokenLedger
 from .template import TemplateProvider
 
@@ -18,6 +24,7 @@ __all__ = [
     "TemplateProvider",
     "ThrottledProvider",
     "TokenLedger",
+    "RateLimitedProvider",
     "build_provider",
     "clip_words",
 ]

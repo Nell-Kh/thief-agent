@@ -102,10 +102,10 @@ binding parameter table of Appendix ו — see the table at the end.
 | Requirement | Where enforced | Evidence |
 |---|---|---|
 | Python managed with `uv` only (no pip/venv) | `pyproject.toml` + `uv.lock` | repo root |
-| Every code file ≤ 150 lines | audited every commit (8.18.4/8.18.5, code-lines = non-blank, non-comment, non-docstring) | largest src file: `services/turn_taking.py`, 112 code lines; largest test file: `test_kit_vectors.py`/`test_kit_delivery.py`, ~85 each |
-| Test coverage ≥ 85% | `pyproject.toml` `fail_under=85` — the suite FAILS below it | current: **97.8%**, 613 tests |
+| Every code file ≤ 150 lines | enforced by `tests/unit/test_file_size_law.py` (code-lines = non-blank, non-comment, non-docstring) | `src/` and `tests/` fully within the cap — largest src file `services/turn_taking.py`, 92 code lines. **Three developer scripts are still over** and carry an explicit debt entry: `build_notebook.py` (506), `friendly_series.py` (254), `sparring_series.py` (202) |
+| Test coverage ≥ 85% | `pyproject.toml` `fail_under=85` — the suite FAILS below it | current: **97.8%**, 689 tests |
 | `ruff check` clean (E,F,W,I,N,UP,B,C4,SIM; line 100) | `pyproject.toml` `[tool.ruff]` | `All checks passed!` |
-| Docstring on every module, class and function | ruff D-adjacent review + convention | all modules |
+| Docstring on every module, class and function | convention + review | complete across `src/` (0 gaps) and `scripts/` (0 gaps). **`tests/` is not yet complete** — most test functions rely on their sentence-length names instead of a docstring; a sweep is still owed |
 | No hardcoded values — everything from configuration | `config/game.json` + per-peer TOMLs; `test_contract_values.py` pins them | ✔ (8.18 sweep found and fixed one gap: the Gatekeeper's DOS-window defaults were not wired from `config/rate_limits.json` — now required constructor args, sourced in `configured_sender`, regression-tested) |
 | No secrets in the repository | `.gitignore` + rule #39/#40 | ✔ |
 | PRD → PLAN → TODO before code; prompts book maintained | `docs/PRD*.md`, `PLAN.md`, `TODO.md`, `PROMPTS.md` (16 entries) | ✔ |
@@ -141,14 +141,20 @@ verification pass, not against a claim.
   fixed in this pass because rewiring the LLM chain onto `Gatekeeper` is a design change, not a
   verification fix, and the existing chain already meets the "no call bypasses a limit" intent.
 - ✔ Config boundaries / overflow queueing — `Gatekeeper`'s FIFO queue + `backpressure` property.
-- ✔ Every file ≤ 150 code lines, docstrings on every module/class/function — re-swept this pass
-  (8.18.4–8.18.6): 0 files over the limit, 0 missing docstrings (12 gaps found and fixed).
+- ◐ Every file ≤ 150 code lines, docstrings on every module/class/function. The 8.18.4–8.18.6
+  sweep recorded "0 files over the limit, 0 missing docstrings", and a later re-count against
+  the actual tree showed that claim had been too broad on both halves: **four files were over
+  the cap** (`test_logbook_audit.py` at 197, plus the three developer scripts above) and
+  **`tests/` was never docstring-complete**. The claim is corrected rather than restated —
+  `test_logbook_audit.py` has since been split, the six `scripts/` docstring gaps filled, and
+  the line rule handed to `tests/unit/test_file_size_law.py` so it is checked on every run
+  instead of re-asserted by hand. The script splits and the `tests/` docstring sweep are open.
 - ✔ Consistent style/naming — `ruff` (E,F,W,I,N,UP,B,C4,SIM) clean across `src/`, `tests/`, and
   `notebooks/analysis.ipynb` (26 pre-existing lint errors found and fixed this pass, see below).
 
 **17.3 Tests & quality**
 - ✔ TDD — tests committed alongside every module (`docs/PROMPTS.md` entries; Phase 10 inventory).
-- ✔ Coverage ≥ 85% — 97.8% measured, gate enforced by `pyproject.toml fail_under=85`.
+- ✔ Coverage ≥ 85% — 97.8% measured over 689 tests, gate enforced by `pyproject.toml fail_under=85`.
 - ✔ Ruff — zero errors after this pass (see 8.18.1 below; was not actually zero before it).
 - ✔ Edge cases documented — hostile-wire fuzz battery (`test_hostile_wire.py`, 14 tests),
   interop delivery-contract decision table (`test_kit_delivery.py`).
@@ -180,7 +186,7 @@ verification pass, not against a claim.
 - — ISO/IEC 25010 is referenced as a quality-model lens in the guidelines, not a literal gate this
   project runs a tool against; the closest operational proxy is the coverage/lint/line-count triad
   already enforced.
-- ✔ Organized Git history — 39 commits, incrementally scoped, meaningful messages (see `git log`).
+- ✔ Organized Git history — incrementally scoped commits with meaningful messages (see `git log`).
 
 ## Verification-pass findings (task 8.18, this sweep)
 

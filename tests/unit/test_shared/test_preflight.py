@@ -20,6 +20,7 @@ from police_thief.shared.preflight import (
 
 @pytest.fixture(scope="module")
 def our_terms() -> dict:
+    """The signed terms this peer would present."""
     return terms_from_contract(ConfigManager.load("police").contract)
 
 

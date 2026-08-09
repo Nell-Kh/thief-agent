@@ -15,6 +15,7 @@ from police_thief.shared.sysinfo import hardware_spec
 
 
 def _turn(**overrides):
+    """A turn record with the given overrides applied before sealing."""
     base = {
         "step": 4,
         "role": "thief",

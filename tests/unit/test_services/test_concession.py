@@ -20,11 +20,13 @@ from police_thief.shared.config import ConfigManager
 
 @pytest.fixture(scope="module")
 def config_police() -> ConfigManager:
+    """The cop side's configuration."""
     return ConfigManager.load("police")
 
 
 @pytest.fixture(scope="module")
 def config_thief() -> ConfigManager:
+    """The thief side's configuration."""
     return ConfigManager.load("thief")
 
 

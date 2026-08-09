@@ -13,12 +13,15 @@ class FakeClock:
     """A hand-cranked monotonic clock."""
 
     def __init__(self) -> None:
+        """Start the fake clock at zero."""
         self.now = 0.0
 
     def __call__(self) -> float:
+        """Return the current fake time, standing in for ``time.monotonic``."""
         return self.now
 
     def advance(self, seconds: float) -> None:
+        """Move the fake clock forward without actually sleeping."""
         self.now += seconds
 
 
@@ -67,6 +70,7 @@ def test_state_is_persisted_before_shutdown() -> None:
 
 
 def test_firing_is_idempotent() -> None:
+    """A watchdog that already fired must not fire again and double-report."""
     clock = FakeClock()
     calls: list[int] = []
     dog = Watchdog(60, on_shutdown=lambda: calls.append(1), clock=clock)

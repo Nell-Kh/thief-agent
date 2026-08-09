@@ -29,6 +29,7 @@ from police_thief.shared.config_io import canonical_json
 
 
 def _play_once(config_dir: Path) -> GameState:
+    """Play one full match from the fixed start and return its trajectory."""
     config = ConfigManager.load("police", config_dir)
     sdk = SimulationSdk(config)
     runner = LocalMatchRunner(

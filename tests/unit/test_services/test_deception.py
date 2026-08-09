@@ -17,6 +17,7 @@ from police_thief.services.deception import (
 
 
 def request(step: int, style: str, intent: str = INTENT_TRUTH) -> HintRequest:
+    """A hint request carrying the intent under test."""
     return HintRequest(role="thief", intent=intent, true_direction="N",
                        map_area="New York", max_words=15, step=step, style=style)
 

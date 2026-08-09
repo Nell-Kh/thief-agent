@@ -55,9 +55,11 @@ class FakeClock:
     """A hand-cranked monotonic clock, so timing tests never sleep."""
 
     def __init__(self) -> None:
+        """Start the shared fake clock at zero."""
         self.now = 0.0
 
     def __call__(self) -> float:
+        """Return the current fake time, standing in for ``time.monotonic``."""
         return self.now
 
     def advance(self, seconds: float) -> None:

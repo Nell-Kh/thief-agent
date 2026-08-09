@@ -22,11 +22,13 @@ from police_thief.shared.config import ConfigManager
 
 @pytest.fixture
 def pheromones(config_dir: Path):
+    """The locked emission and decay parameters."""
     return ConfigManager.load("police", config_dir).contract.pheromones
 
 
 @pytest.fixture
 def field(pheromones) -> ScentField:
+    """An empty scent field over a 7x7 board."""
     return ScentField(board_size=7, config=pheromones)
 
 

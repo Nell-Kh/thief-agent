@@ -20,21 +20,25 @@ from police_thief.shared.config import ConfigManager
 
 @pytest.fixture(scope="module")
 def config() -> ConfigManager:
+    """The loaded configuration under test."""
     return ConfigManager.load("thief")
 
 
 @pytest.fixture
 def view(config: ConfigManager) -> WorldView:
+    """A world view positioned for the case under test."""
     return WorldView.open("thief", config.contract)
 
 
 def msg(step: int = 1, sender: str = "police", **extra) -> TurnMessage:
+    """A turn message with hostile overrides applied."""
     commit_val = extra.pop("commit", "a" * 64)
     return TurnMessage(step=step, sender=sender, hint="", smell_grid=extra.pop("smell", {}),
                        commit=commit_val, **extra)
 
 
 def assert_violation(view: WorldView, config: ConfigManager, message: TurnMessage) -> None:
+    """Assert the message is rejected without ending the game in our favour."""
     receive_turn(view, message, config.contract)
     assert view.result is not None
     assert view.result["type"] == "technical_loss"
@@ -102,6 +106,7 @@ def test_forged_scent_fields_are_violations(view, config, smell) -> None:
 
 
 def test_lawful_scent_passes(view, config) -> None:
+    """The fuzz battery must not reject a well-formed message - no false positives."""
     receive_turn(view, msg(smell={"3,3": 0.9, "3,4": 0.62}), config.contract)
     assert view.result is None
 
@@ -172,6 +177,7 @@ def test_the_runtime_never_crashes_on_a_hostile_barrage(config) -> None:
 
 
 def _handler(config: ConfigManager):
+    """An inbound handler for hostile-input cases."""
     from police_thief.services.inbound import InboundHandler
     from police_thief.shared.interop import negotiate_extras, terms_from_contract
     return InboundHandler(

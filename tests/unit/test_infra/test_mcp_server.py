@@ -15,6 +15,7 @@ SCENT = "d" * 64
 
 @pytest.fixture
 def handler() -> InboundHandler:
+    """An inbound handler with minimal terms, for wire-level checks."""
     return InboundHandler(our_terms={"board_size": 7}, our_extras={}, expect_role="thief")
 
 

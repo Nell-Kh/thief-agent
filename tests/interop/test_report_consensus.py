@@ -31,6 +31,7 @@ VECTORS = Path(__file__).resolve().parents[1] / "vectors"
 
 
 def load(name: str) -> dict:
+    """Read one vendored kit vector by name."""
     return json.loads((VECTORS / f"{name}.json").read_text(encoding="utf-8"))
 
 

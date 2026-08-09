@@ -20,10 +20,12 @@ from police_thief.shared.config import ConfigManager
 
 @pytest.fixture(scope="module")
 def config() -> ConfigManager:
+    """The loaded configuration under test."""
     return ConfigManager.load(ROLE_POLICE)
 
 
 def play(config: ConfigManager, thief_cls, cop_at, thief_at) -> GameState:
+    """Run a full local match and return its outcome."""
     runner = LocalMatchRunner(
         SimulationSdk(config),
         police_brain=HybridPoliceBrain(ROLE_POLICE, config.contract),
@@ -66,6 +68,7 @@ def test_commitment_to_the_wall_is_one_way(config: ConfigManager) -> None:
 
 
 def claim_msg(step: int, claim, scent) -> TurnMessage:
+    """A turn message carrying a capture claim at the given step."""
     return TurnMessage(step=step, sender="police", hint="", smell_grid=scent,
                        commit="a" * 64, capture_claim=list(claim))
 

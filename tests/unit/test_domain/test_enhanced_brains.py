@@ -18,6 +18,7 @@ from police_thief.shared.config import ConfigManager
 
 @pytest.fixture
 def contract(config_dir: Path):
+    """The signed contract these tests enforce physics against."""
     return ConfigManager.load("police", config_dir).contract
 
 
@@ -30,6 +31,7 @@ def view(
     board: Board | None = None,
     barriers_left: int = 14,
 ) -> BrainView:
+    """A brain view built for one specific board position."""
     return BrainView(
         role=role,
         position=position,

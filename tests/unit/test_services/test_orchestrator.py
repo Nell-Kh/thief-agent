@@ -27,6 +27,7 @@ def opponent(config_dir: Path) -> InboundHandler:
 
 @pytest.fixture
 def police(config_dir: Path, opponent: InboundHandler) -> Orchestrator:
+    """An orchestrator for the cop over a loopback transport."""
     return Orchestrator(ConfigManager.load("police", config_dir), LoopbackTransport(opponent))
 
 

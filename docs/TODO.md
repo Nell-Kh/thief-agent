@@ -707,14 +707,14 @@ any file in this repository.
 
 | # | Task | Priority | Owner | Status |
 |---|---|---|---|---|
-| 11.6 | **Residual guideline debt** | P1 | team | ☐ |
-| 11.6.1 | Split `src/police_thief/services/series_guard.py` — 160 lines under the guidelines' own plain wording (§3.2: blanks and comments excluded, docstrings NOT mentioned as excluded). Clean seam: checkpointing ↔ containment | P1 | team | ☐ |
-| 11.6.2 | Note the counting-rule tension in `test_file_size_law.py`: guidelines p.24 lists "קבצים עד 150 שורות קוד, הערות ו-docstrings", which cuts against excluding docstrings. Our test currently exempts the one `src/` file that fails the plain reading | P1 | team | ☐ |
-| 11.6.3 | Split `scripts/build_notebook.py` (514 code lines), `scripts/friendly_series.py` (291), `scripts/sparring_series.py` (227) — over the cap on ANY reading, currently on the `KNOWN_OVER_LIMIT` debt list | P1 | team | ☐ |
-| 11.6.4 | Fix `shared/sysinfo.py` on Windows: `_cpu_frequency_mhz` reads `/proc/cpuinfo` and `_total_ram_gb` uses `os.sysconf`, both Linux-only, so the sealed declaration ships `cpu_mhz: 0.0, ram_gb: 0.0` on our actual machine. Rule #24's sanction is loss of the computational-fairness bonus, and it is a false declaration besides | P1 | team | ☐ |
-| 11.6.5 | Add a test asserting the hardware spec has non-zero CPU and RAM on the platform that will actually play | P1 | team | ☐ |
-| 11.6.6 | Resolve `config/rate_limits.json`'s dead `anthropic` and `default` blocks — read by no code path (self-admitted, ADR-3). Wire them or delete them (guidelines §7.2) | P2 | team | ☐ |
-| 11.6.7 | Complete the `tests/` docstring sweep still owed from the 8.18 pass | P2 | team | ☐ |
+| 11.6 | **Residual guideline debt** — all seven items closed; every one is now enforced by a test rather than by review | P1 | team | ✔ |
+| 11.6.1 | Split `src/police_thief/services/series_guard.py` (160 lines under the guidelines' plain wording). Split along its real seam: containment protects the SCHEDULE, the new `services/series_checkpoint.py` protects EVIDENCE. Names re-exported so callers keep one import | P1 | team | ✔ |
+| 11.6.2 | Counting-rule tension recorded in `test_file_size_law.py` and a second check added (`test_no_source_file_is_over_the_cap_under_the_stricter_reading`): every `src/` module now passes under BOTH readings, so the interpretation is no longer load-bearing | P1 | team | ✔ |
+| 11.6.3 | Split all three over-cap scripts. `build_notebook.py` 506 → 28 (cells into `_notebook_part1..5` behind `_notebook_cells`, split by AST at true element boundaries), `friendly_series.py` 260 → ~145 (`_series_cli`, `_series_declaration`, `_series_subgame`), `sparring_series.py` 202 → 113 (`_sparring_subgame`). **`KNOWN_OVER_LIMIT` is now empty.** All three verified to still import and parse arguments | P1 | team | ✔ |
+| 11.6.4 | Fixed `shared/sysinfo.py` on Windows: POSIX → `GlobalMemoryStatusEx` + registry `~MHz` → macOS `sysctl`, reaching 0.0 only when the host truly will not say. The sealed declaration described a machine with no clock and no memory before this | P1 | team | ✔ |
+| 11.6.5 | 8 tests in `test_shared/test_sysinfo.py`. The Windows branches cannot execute on Linux CI, so they are tested by driving the dispatch with fakes and asserting the fallback ORDER rather than a number this host cannot produce | P1 | team | ✔ |
+| 11.6.6 | Resolved by wiring, not deleting: `RateLimitedProvider` puts `config/rate_limits.json`'s `anthropic` block in the chain as `throttle(rate_limit(budget_guard(paid)), template)`, built on the existing tested `TokenBucket`. A refusal degrades to a free template hint rather than a 429 mid-match. 6 regression tests | P2 | team | ✔ |
+| 11.6.7 | 125 docstrings written (every module, class, fixture and helper in `tests/`). Test *functions* are a declared exception — their names are full sentences — and the exception is **enforced** by `test_docstring_law.py`: an undocumented test needs ≥4 words after `test_`, which caught 7 short names that were then documented rather than the threshold lowered | P2 | team | ✔ |
 
 ### 11.7 — Strengths to defend rather than fix
 

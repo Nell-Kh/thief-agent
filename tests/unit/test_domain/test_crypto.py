@@ -14,6 +14,7 @@ def test_a_nonce_is_32_hex_characters() -> None:
 
 
 def test_nonces_never_repeat() -> None:
+    """Two seals of identical payloads must differ - a repeat would leak the move."""
     assert len({new_nonce() for _ in range(200)}) == 200
 
 

@@ -19,6 +19,7 @@ OUR_EXTRAS = {"role": "police", "sub_game_number": 1, "scent_model_sha256": "d" 
 
 
 def terms(**overrides) -> dict:
+    """A greeting's terms, with per-test overrides applied."""
     base = {
         "terms": dict(FLAT_TERMS),
         "nonce": NONCE,
@@ -35,6 +36,7 @@ def terms(**overrides) -> dict:
 
 
 def turn_wire(step: int = 1, sender: str = "thief", **overrides) -> dict:
+    """A raw turn message dict, with per-test overrides applied."""
     base = {
         "step": step,
         "sender": sender,

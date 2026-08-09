@@ -13,6 +13,7 @@ from police_thief.shared.config import ConfigManager
 
 @pytest.fixture
 def engine(config_dir: Path) -> Engine:
+    """An engine bound to the committed contract."""
     return Engine(ConfigManager.load("police", config_dir).contract)
 
 

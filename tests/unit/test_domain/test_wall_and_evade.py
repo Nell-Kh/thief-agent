@@ -19,15 +19,18 @@ from police_thief.shared.config import ConfigManager
 
 @pytest.fixture(scope="module")
 def config() -> ConfigManager:
+    """The loaded configuration under test."""
     return ConfigManager.load(ROLE_POLICE)
 
 
 def view(board: Board, role: str, at, target, barriers_left: int = 10) -> BrainView:
+    """A brain view for one board position, for either role."""
     return BrainView(role=role, position=at, target=target, board=board,
                      barriers_left=barriers_left, step=1)
 
 
 def play(config: ConfigManager, cop_cls, thief_cls, cop_at, thief_at) -> GameState:
+    """Run a full local match and return its outcome."""
     runner = LocalMatchRunner(
         SimulationSdk(config),
         police_brain=cop_cls(ROLE_POLICE, config.contract),

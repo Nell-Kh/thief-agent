@@ -27,6 +27,7 @@ class FakeCredentials:
     loaded_from: tuple[str, list[str]] | None = None
 
     def __init__(self, valid: bool = True, expired: bool = False, refresh_token: str = "") -> None:
+        """Record the validity the test wants this credential to report."""
         self.valid = valid
         self.expired = expired
         self.refresh_token = refresh_token
@@ -34,14 +35,17 @@ class FakeCredentials:
 
     @classmethod
     def from_authorized_user_file(cls, path: str, scopes: list[str]) -> FakeCredentials:
+        """Remember the load arguments so the test can assert the scope requested."""
         cls.loaded_from = (path, scopes)
         return cls._next
 
     def refresh(self, request: object) -> None:
+        """Mark the credential refreshed and valid."""
         self.refreshed = True
         self.valid = True
 
     def to_json(self) -> str:
+        """Serialize to a placeholder token document."""
         return '{"token": "fake"}'
 
 
@@ -55,12 +59,15 @@ def google_doubles(monkeypatch: pytest.MonkeyPatch) -> type[FakeCredentials]:
     flow_mod = types.ModuleType("google_auth_oauthlib.flow")
 
     class FakeFlow:
+        """Stand-in for Google's installed-app OAuth flow, asserting the send-only scope."""
         @classmethod
         def from_client_secrets_file(cls, path: str, scopes: list[str]) -> FakeFlow:
+            """Assert the send-only scope was requested, then hand back the flow."""
             assert scopes == [GMAIL_SEND_SCOPE]
             return cls()
 
         def run_local_server(self, port: int = 0) -> FakeCredentials:
+            """Return a valid credential without opening a browser."""
             return FakeCredentials(valid=True)
 
     flow_mod.InstalledAppFlow = FakeFlow

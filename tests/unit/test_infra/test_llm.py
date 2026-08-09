@@ -16,6 +16,7 @@ from police_thief.infra.llm.template import TemplateProvider
 
 
 def request(step: int = 0, intent: str = "truth", direction: str | None = "N") -> HintRequest:
+    """A hint request with the fields every provider reads."""
     return HintRequest(
         role="thief",
         intent=intent,
@@ -27,16 +28,20 @@ def request(step: int = 0, intent: str = "truth", direction: str | None = "N") -
 
 
 class Exploding(HintProvider):
+    """A provider that always fails, so the fallback is what gets tested."""
     name = "exploding"
 
     def generate(self, _request: HintRequest) -> str:
+        """Produce the canned provider response for this test."""
         raise ProviderError("boom")
 
 
 class Canned(HintProvider):
+    """A provider returning a fixed string, so assertions can be exact."""
     name = "canned"
 
     def generate(self, _request: HintRequest) -> str:
+        """Produce the canned provider response for this test."""
         return "a canned hint"
 
 

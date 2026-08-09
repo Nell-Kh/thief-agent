@@ -22,6 +22,7 @@ SAFETY_CAP = 90
 
 @pytest.fixture
 def peers(config_dir: Path) -> tuple[MatchRuntime, MatchRuntime]:
+    """Two independent runtimes, cop and thief, that only ever exchange messages."""
     police = MatchRuntime(
         ConfigManager.load("police", config_dir), game_id="itest", sub_game=1,
         github_commit="deadbeef",
@@ -115,6 +116,7 @@ def test_the_match_is_reproducible(config_dir: Path) -> None:
     """Deterministic brains and templates: the same match replays identically."""
 
     def run() -> tuple:
+        """Play a whole match between the two peers over messages alone."""
         police = MatchRuntime(
             ConfigManager.load("police", config_dir), "itest", 1, "deadbeef"
         )

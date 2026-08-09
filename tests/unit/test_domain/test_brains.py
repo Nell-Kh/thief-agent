@@ -14,6 +14,7 @@ from police_thief.shared.config import ConfigManager
 
 @pytest.fixture
 def contract(config_dir: Path):
+    """The signed contract these tests enforce physics against."""
     return ConfigManager.load("police", config_dir).contract
 
 
@@ -44,7 +45,9 @@ def test_the_base_brain_refuses_to_decide(contract) -> None:
 
 def test_the_default_action_wraps_pick_move(contract) -> None:
     class OneTrick(BrainBase):
+        """A brain that always plays the same move, isolating the wiring from strategy."""
         def _pick_move(self, _view: BrainView) -> str:
+            """Always go east, whatever the board says."""
             return "E"
 
     action = OneTrick("police", contract).decide(view(contract))

@@ -26,6 +26,7 @@ from police_thief.shared.config import ConfigManager
 
 @pytest.fixture
 def config(config_dir: Path) -> ConfigManager:
+    """The loaded configuration under test."""
     return ConfigManager.load("police", config_dir)
 
 

@@ -18,6 +18,7 @@ from police_thief.shared.config_io import canonical_json
 
 
 def row(number: int, winner: str | None, scores: dict, *, tie: bool = False) -> dict:
+    """One sub-game row carrying the scores the aggregate is derived from."""
     return {
         "sub_game_number": number, "roles": {"a": "police", "b": "thief"},
         "started_at": "t0", "ended_at": "t1", "result": "capture",

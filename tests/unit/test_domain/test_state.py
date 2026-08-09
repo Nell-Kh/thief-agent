@@ -14,6 +14,7 @@ from police_thief.shared.config import ConfigManager
 
 @pytest.fixture
 def contract(config_dir: Path):
+    """The signed contract these tests enforce physics against."""
     return ConfigManager.load("police", config_dir).contract
 
 

@@ -13,23 +13,28 @@ class FakeOpponent:
     """An opponent exposing the three protocol tools, recording every call."""
 
     def __init__(self) -> None:
+        """Start with an empty call log."""
         self.calls: list[tuple[str, dict]] = []
 
     def negotiate(self, payload: dict) -> dict:
+        """Record the greeting and accept it."""
         self.calls.append(("negotiate", payload))
         return {"accepted": True}
 
     def receive_turn(self, payload: dict) -> dict:
+        """Record the turn and acknowledge it."""
         self.calls.append(("receive_turn", payload))
         return {"ok": True, "step": payload.get("step")}
 
     def submit_audit(self, payload: dict) -> dict:
+        """Record the disclosure and acknowledge it."""
         self.calls.append(("submit_audit", payload))
         return {"ok": True, "records": len(payload.get("records", []))}
 
 
 @pytest.fixture
 def opponent() -> FakeOpponent:
+    """A fake opponent recording every tool call it receives."""
     return FakeOpponent()
 
 
@@ -38,6 +43,7 @@ def build(network_config, rate_limits, fake_clock):
     """Build a client, optionally recording backoff sleeps."""
 
     def _build(transport, sleeps: list[float] | None = None, clock=None) -> PeerClient:
+        """A peer client wired to the given transport and limits."""
         return PeerClient(
             transport,
             network_config,
@@ -85,7 +91,9 @@ def test_a_late_reply_is_treated_as_a_failure(build, fake_clock) -> None:
     clock = fake_clock
 
     class SlowTransport:
+        """A transport whose send overruns the response deadline."""
         def send(self, tool: str, payload: dict) -> dict:
+            """Deliver the payload, advancing the fake clock as the case requires."""
             clock.advance(31)
             return {"ok": True}
 
@@ -97,7 +105,9 @@ def test_a_reply_inside_the_deadline_is_accepted(build, fake_clock) -> None:
     clock = fake_clock
 
     class PromptTransport:
+        """A transport that answers just inside the response deadline."""
         def send(self, tool: str, payload: dict) -> dict:
+            """Deliver the payload, advancing the fake clock as the case requires."""
             clock.advance(29)
             return {"ok": True}
 

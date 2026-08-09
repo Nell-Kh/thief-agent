@@ -17,6 +17,7 @@ LINKS = links_block("yanell11-vs-rivals", {A: {}, B: {}})
 
 
 def row(n: int, winner: str | None, sa: int, sb: int, *, tie: bool = False) -> dict:
+    """One result row shaped as the settlement scope expects."""
     return {
         "sub_game_number": n, "roles": {A: "police", B: "thief"},
         "started_at": "", "ended_at": "", "result": "capture",
@@ -27,6 +28,7 @@ def row(n: int, winner: str | None, sa: int, sb: int, *, tie: bool = False) -> d
 
 
 def build(rows: list[dict]) -> dict:
+    """A result payload assembled from the given rows."""
     return result_payload(
         game_uid="u", game_id="yanell11-vs-rivals", links=LINKS, timezone="Asia/Jerusalem",
         group_ids=[A, B], sub_games=rows, tie_score=2, games_played={A: 0, B: None},

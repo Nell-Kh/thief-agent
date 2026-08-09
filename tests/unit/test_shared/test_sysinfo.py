@@ -48,6 +48,7 @@ def test_this_host_reports_real_cpu_and_memory() -> None:
 def test_ram_falls_back_from_posix_to_windows_to_macos(monkeypatch) -> None:
     """The dispatch order, driven with fakes so every branch is exercised."""
     def no_posix(_name: str) -> int:
+        """Refuse the POSIX probe, forcing the next fallback."""
         raise OSError("no sysconf here")
 
     monkeypatch.setattr(sysinfo.os, "sysconf", no_posix)

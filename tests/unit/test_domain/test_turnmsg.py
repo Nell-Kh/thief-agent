@@ -13,6 +13,7 @@ from police_thief.domain.turnmsg import (
 
 
 def message(**overrides) -> dict:
+    """A valid wire message, with per-test overrides applied."""
     wire = {
         "step": 3,
         "sender": "thief",

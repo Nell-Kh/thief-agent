@@ -16,9 +16,11 @@ class Recorder:
     """A handler with one protocol tool, recording what it receives."""
 
     def __init__(self) -> None:
+        """Start with an empty received log."""
         self.received: list[dict] = []
 
     def receive_turn(self, payload: dict) -> dict:
+        """Record the payload and acknowledge the step."""
         self.received.append(payload)
         return {"ok": True, "step": payload.get("step")}
 

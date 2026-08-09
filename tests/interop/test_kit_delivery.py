@@ -26,6 +26,7 @@ def load(name: str) -> dict:
 
 
 def _turn_message(step: int, commit: str) -> dict:
+    """A minimal well-formed turn message for the delivery decision table."""
     return {"step": step, "sender": "thief", "hint": "", "smell_grid": {}, "commit": commit}
 
 
@@ -54,6 +55,7 @@ def setup_receiver(config_dir: Path, reorder_window: int = 2):
 
 
 def test_delivery_contract_arrivals(config_dir: Path) -> None:
+    """Every arrival case in the kit's delivery decision table, applied in order."""
     from police_thief.services.inbound import HandshakeRejectedError
 
     vector = load("delivery_contract")
@@ -88,6 +90,7 @@ def test_delivery_contract_arrivals(config_dir: Path) -> None:
 
 
 def test_no_reorder_window(config_dir: Path) -> None:
+    """With the reorder window disabled, an out-of-order step is refused outright."""
     vector = load("delivery_contract")
     row = vector["no_reorder_window"]
 

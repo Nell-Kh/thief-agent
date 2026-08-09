@@ -17,15 +17,18 @@ from police_thief.shared.config import ConfigManager
 
 @pytest.fixture(scope="module")
 def config() -> ConfigManager:
+    """The loaded configuration under test."""
     return ConfigManager.load(ROLE_POLICE)
 
 
 @pytest.fixture
 def cop(config: ConfigManager) -> RegionPoliceBrain:
+    """A region-strategy cop bound to the contract."""
     return RegionPoliceBrain(ROLE_POLICE, config.contract)
 
 
 def view(board: Board, cop_at, thief_at, barriers_left: int = 10, step: int = 1) -> BrainView:
+    """A world view positioned for the case under test."""
     return BrainView(
         role=ROLE_POLICE, position=cop_at, target=thief_at,
         board=board, barriers_left=barriers_left, step=step,

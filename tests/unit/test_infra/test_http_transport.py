@@ -28,6 +28,7 @@ def test_send_returns_the_reply_dict(monkeypatch: pytest.MonkeyPatch) -> None:
     transport = McpHttpTransport("http://127.0.0.1:9/mcp")
 
     async def fake_call(_tool: str, _payload: dict) -> dict:
+        """Accept any call, standing in for a healthy peer."""
         return {"accepted": True}
 
     monkeypatch.setattr(transport, "_call", fake_call)
@@ -40,6 +41,7 @@ def test_an_unexpected_failure_becomes_a_transport_error(
     transport = McpHttpTransport("http://127.0.0.1:9/mcp")
 
     async def explode(_tool: str, _payload: dict) -> dict:
+        """Fail loudly, so the caller's error handling is the thing under test."""
         raise RuntimeError("connection reset")
 
     monkeypatch.setattr(transport, "_call", explode)
@@ -103,6 +105,7 @@ def test_check_connectivity_reports_a_clean_technical_loss(
     """An unreachable opponent must produce a report, never a hang or a crash."""
 
     def never_answers(**_kw):
+        """Stand in for a peer that never replies."""
         raise PeerUnreachableError("negotiate: opponent unreachable after 3 attempts")
 
     _install(monkeypatch, _fake_peer(never_answers))
@@ -119,6 +122,7 @@ def test_check_connectivity_reports_a_contract_rejection(
     calls = []
 
     def refuse(**_kw):
+        """Refuse with a contract mismatch, which must never be retried."""
         calls.append(1)
         raise RuntimeError("contract mismatch: ours abc, theirs def")
 
@@ -143,6 +147,7 @@ def test_the_peer_that_starts_first_waits_instead_of_giving_up(
     attempts = []
 
     def up_on_the_fourth_try(**_kw):
+        """Fail three times, then answer - the opponent starting late."""
         attempts.append(1)
         if len(attempts) < 4:
             raise PeerUnreachableError("opponent unreachable after 3 attempts")
@@ -162,6 +167,7 @@ def test_the_rendezvous_window_is_bounded(monkeypatch: pytest.MonkeyPatch) -> No
     clock = iter([0.0, 5.0, 10.0, 99.0, 99.0, 99.0])
 
     def never_answers(**_kw):
+        """Stand in for a peer that never replies."""
         raise PeerUnreachableError("unreachable")
 
     fake = _fake_peer(never_answers)
@@ -177,6 +183,7 @@ def test_a_one_sided_handshake_names_the_likely_cause(
     """Heard from them but cannot reach them back: point at opponent_url."""
 
     def never_answers(**_kw):
+        """Stand in for a peer that never replies."""
         raise PeerUnreachableError("unreachable")
 
     fake = _fake_peer(never_answers, opponent_terms={"group_id": "them"})

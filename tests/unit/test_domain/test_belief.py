@@ -10,15 +10,18 @@ from police_thief.domain.board import Board
 
 @pytest.fixture
 def board() -> Board:
+    """An empty board for the belief map to spread over."""
     return Board(7)
 
 
 @pytest.fixture
 def belief(board: Board) -> BeliefMap:
+    """A fresh belief map with a uniform prior."""
     return BeliefMap(board)
 
 
 def _total(belief: BeliefMap) -> float:
+    """Total probability mass, which must stay 1.0 under every update."""
     return sum(belief.snapshot().values())
 
 

@@ -30,6 +30,7 @@ LINKS = links_block("north-vs-south", GITHUB)
 
 
 def make_group(gid: str) -> dict:
+    """One team's declaration block with placeholder identity."""
     return group_block(
         group_id=gid, group_name=gid, members=["m1", "m2"], repos=GITHUB[gid],
         mcp_servers={"cop": f"https://{gid}.example/mcp"}, llm_model="template",
@@ -39,6 +40,7 @@ def make_group(gid: str) -> dict:
 
 
 def make_row(number: int, winner: str, score_a: int, score_b: int, *, tie: bool = False) -> dict:
+    """One sub-game result row."""
     return {
         "sub_game_number": number, "roles": {A: "police", B: "thief"},
         "started_at": "2026-08-04T10:00:00+03:00", "ended_at": "2026-08-04T10:00:09+03:00",
@@ -51,6 +53,7 @@ def make_row(number: int, winner: str, score_a: int, score_b: int, *, tie: bool 
 
 
 def make_result(rows: list[dict], **overrides) -> dict:
+    """A full result payload, with per-test overrides applied."""
     kwargs = {
         "game_uid": "uid-7", "game_id": "north-vs-south", "links": LINKS,
         "timezone": "Asia/Jerusalem", "group_ids": [A, B], "sub_games": rows,

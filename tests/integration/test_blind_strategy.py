@@ -25,6 +25,7 @@ from police_thief.shared.config import ConfigManager
 
 @pytest.fixture
 def config(config_dir: Path) -> ConfigManager:
+    """The loaded configuration under test."""
     return ConfigManager.load("police", config_dir)
 
 
@@ -32,6 +33,7 @@ class StandStill(BlindPoliceBrain):
     """A target that never moves - for measuring pure pursuit."""
 
     def _decide_move(self, view: BrainView):
+        """Always stay put, isolating the blind strategy from movement."""
         from police_thief.domain.engine import stay
 
         return stay()

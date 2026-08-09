@@ -34,6 +34,7 @@ VECTORS = Path(__file__).resolve().parents[1] / "vectors"
 
 
 def load(name: str) -> dict:
+    """Read one vendored kit vector by name."""
     return json.loads((VECTORS / f"{name}.json").read_text(encoding="utf-8"))
 
 
@@ -82,6 +83,7 @@ def test_our_contract_produces_the_full_flat_term_set() -> None:
 
 @pytest.fixture(scope="module")
 def scent_config() -> PheromoneConfig:
+    """The pheromone parameters the vendored scent vectors are pinned against."""
     return ConfigManager.load("police").contract.pheromones
 
 

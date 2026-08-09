@@ -16,6 +16,7 @@ from police_thief.sdk import SimulationSdk
 
 @pytest.fixture
 def sdk(config_dir: Path) -> SimulationSdk:
+    """A simulation SDK loaded from the committed configuration."""
     return SimulationSdk.load("police", config_dir)
 
 

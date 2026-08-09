@@ -22,15 +22,18 @@ from police_thief.shared.interop import (
 
 @pytest.fixture
 def police(config_dir: Path) -> ConfigManager:
+    """The cop side's configuration."""
     return ConfigManager.load("police", config_dir)
 
 
 @pytest.fixture
 def thief(config_dir: Path) -> ConfigManager:
+    """The thief side's configuration."""
     return ConfigManager.load("thief", config_dir)
 
 
 def greeting_of(config: ConfigManager, **overrides):
+    """Build one peer's handshake greeting, with overrides applied."""
     base = build_terms(
         config, peer_id="team-x", games_played=2, sub_game=1, step0_commit="c" * 64
     )
@@ -39,6 +42,7 @@ def greeting_of(config: ConfigManager, **overrides):
 
 
 def check(theirs, ours_config: ConfigManager, expect_role: str = "thief"):
+    """Validate a greeting against ours, raising on any refusal."""
     return validate_terms(
         theirs,
         our_terms=terms_from_contract(ours_config.contract),

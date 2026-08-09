@@ -22,24 +22,30 @@ class FakeGmail:
     """A Gmail service double recording drafts and sends."""
 
     def __init__(self, error: Exception | None = None) -> None:
+        """Start with empty draft and sent logs, and no pending error."""
         self.drafts_created: list[dict] = []
         self.messages_sent: list[dict] = []
         self._error = error
 
     def users(self) -> FakeGmail:
+        """Mimic the Gmail API's fluent ``users()`` step."""
         return self
 
     def drafts(self) -> SimpleNamespace:
         # ``userId`` mirrors the real Gmail API keyword, hence the noqa.
+        """Mimic the Gmail API's ``drafts()`` resource."""
         create = lambda userId, body: self._request(self.drafts_created, body)  # noqa: N803, E731
         return SimpleNamespace(create=create)
 
     def messages(self) -> SimpleNamespace:
+        """Mimic the Gmail API's ``messages()`` resource."""
         send = lambda userId, body: self._request(self.messages_sent, body)  # noqa: N803, E731
         return SimpleNamespace(send=send)
 
     def _request(self, bucket: list[dict], body: dict) -> SimpleNamespace:
+        """Record the request and return an object with the API's ``execute`` step."""
         def execute() -> dict:
+            """Raise the configured error, or record the call and return a stub id."""
             if self._error is not None:
                 raise self._error
             bucket.append(body)

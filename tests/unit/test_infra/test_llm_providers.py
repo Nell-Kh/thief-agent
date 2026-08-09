@@ -24,9 +24,11 @@ class FakeHttpReply(io.BytesIO):
     """A context-manager byte stream, standing in for urlopen's reply."""
 
     def __enter__(self) -> FakeHttpReply:
+        """Enter the fake context, returning the response itself."""
         return self
 
     def __exit__(self, *_args) -> None:
+        """Leave the fake context without suppressing anything."""
         return None
 
 
@@ -48,6 +50,7 @@ def test_ollama_generates_meters_and_clips(monkeypatch: pytest.MonkeyPatch) -> N
 
 def test_ollama_unreachable_becomes_a_provider_error(monkeypatch: pytest.MonkeyPatch) -> None:
     def refuse(*_a, **_k):
+        """Refuse the connection, as an unreachable local model would."""
         raise urllib.error.URLError("connection refused")
 
     monkeypatch.setattr("urllib.request.urlopen", refuse)
@@ -91,6 +94,7 @@ def test_claude_api_failure_becomes_a_provider_error() -> None:
     provider = ClaudeApiProvider(model="", ledger=TokenLedger(budget=0))
 
     def explode(**_k):
+        """Fail loudly, so the caller's error handling is the thing under test."""
         raise RuntimeError("rate limited")
 
     provider._client = SimpleNamespace(messages=SimpleNamespace(create=explode))
@@ -131,6 +135,7 @@ def test_cli_failure_becomes_a_provider_error(monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.setattr("shutil.which", lambda _name: "/usr/bin/claude")
 
     def explode(*_a, **_k):
+        """Fail loudly, so the caller's error handling is the thing under test."""
         raise subprocess.TimeoutExpired(cmd="claude", timeout=45)
 
     monkeypatch.setattr("subprocess.run", explode)
@@ -154,6 +159,7 @@ def test_the_paid_provider_is_bound_to_a_timeout_and_no_sdk_retries(monkeypatch)
     captured: dict = {}
 
     def fake_anthropic_client(**kwargs):
+        """Capture the constructor kwargs and return a canned client."""
         captured.update(kwargs)
         return SimpleNamespace(messages=SimpleNamespace(create=lambda **_: None))
 

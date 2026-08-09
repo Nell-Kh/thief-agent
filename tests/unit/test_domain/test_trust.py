@@ -16,6 +16,7 @@ YARDSTICK = 0.81  # (1 - rho) * 0.9 under the binding parameters
 
 @pytest.fixture
 def model() -> TrustModel:
+    """A trust model calibrated to the one-turn-old trail yardstick."""
     return TrustModel(fresh_trail=YARDSTICK, board_size=7)
 
 
@@ -59,6 +60,7 @@ def test_no_directions_map_to_no_region() -> None:
 
 
 def test_trust_starts_neutral(model: TrustModel) -> None:
+    """Before any evidence, an opponent is neither believed nor doubted."""
     assert model.trust == INITIAL_TRUST
 
 
@@ -128,6 +130,7 @@ def test_the_appraisal_region_matches_the_claim(model: TrustModel) -> None:
 
 
 def test_appraisals_are_deterministic(model: TrustModel) -> None:
+    """The same hint and the same scent must always yield the same appraisal."""
     scent = {(5, 5): 0.81}
     first = TrustModel(YARDSTICK, 7).appraise("north", scent)
     second = TrustModel(YARDSTICK, 7).appraise("north", scent)

@@ -45,5 +45,16 @@ model = "claude-haiku"
 step_deadline_seconds = 30        # hard cap on LLM thinking per step
 
 [email]
-recipient = "yanalserhan3@gmail.com"
-mode = "send"
+# The binding league address (rule #51, App. F variables table). This is NOT a
+# preference: report_blocks._is_armed() refuses to arm `counted` for any other
+# recipient, so a report addressed anywhere else scores nothing however well the
+# series went. It previously pointed at a team member's own inbox, which meant
+# every game we played was silently reported as a friendly.
+recipient = "rmisegal+uoh26finalgame@gmail.com"
+
+# draft = build and park in Gmail Drafts; send = actually deliver.
+# Committed as `draft` on purpose: the repository's resting state is the
+# rehearsal state, so no demo, sparring run or accidental invocation can mail
+# the lecturer. Flip to "send" as a deliberate step when starting a COUNTED
+# series (docs/TODO.md 11.3.2) and flip it back afterwards.
+mode = "draft"

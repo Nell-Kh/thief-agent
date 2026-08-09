@@ -381,6 +381,69 @@ own `verify_vectors.py` holds itself to.
   own guess at "reasonable" wire behavior, which is exactly the point of an interop kit: it
   replaces mutual guessing about edge cases with a shared, testable ground truth.
 
+### 8.1 The declared contradiction: which reading of the book we speak
+
+The rulebook's front matter says nothing binds unless it says so, and its
+academic-freedom clause permits resolving a contradiction either way **provided
+the choice, its location and its reasoning are stated**. This section is that
+statement. Four places in this project follow the kit and the reference peer it
+pins rather than the book's printed formulae:
+
+| # | Fork | Book says | We do (`kit`) | Source |
+|---|---|---|---|---|
+| 1 | Commit seal | `sha256(canonical({state,move,intent,nonce}))` — nonce **inside** the JSON | `sha256(canonical(payload) + "\|" + nonce)` — nonce appended | ch. 5.3.1 vs kit `commit_reveal` (CORE) |
+| 2 | Scent update | `tau' = max(0, (1-rho)*tau + delta)` — one clamp, at zero | additionally clamped above at `emit_intensity` | ch. 4.3 vs registered `multiplicative_book_v1` |
+| 3 | Settlement hash | one canonical form throughout, compact | spaced separators for the settlement preimage only | ch. 5.3 vs kit `report_consensus` (CORE) |
+| 4 | Signed terms | the App. B field set | adds `min_center_intensity` (14 keys, not 13) | App. B vs kit `terms_signature` (CORE) |
+
+**Why we chose the kit column.** These are not stylistic. Fork 1 changes every
+digest in every log; fork 2 diverges on the first re-emission (`0.9*0.9 + 0.9 =
+1.71` clamps to `0.9`, unclamped it converges on 9.0) and the field crosses the
+wire each turn; fork 3 and 4 decide whether a handshake and a settlement can
+complete at all. A pair that disagrees on any one of them fails the mutual audit
+in **both** directions, and rules #19/#35 then score both teams zero regardless
+of who was "right". The kit is the only artifact we have that two independently
+written implementations have actually agreed on byte-for-byte, and its fixtures
+are vendored here and re-derived on every test run.
+
+**We are explicit that this is a bet, not a proof.** The graded authority is the
+book. If the league converges on the printed formulae instead, all four forks
+are wrong at once. So the choice is not baked in: `[interop].profile` in the
+per-peer TOML selects `kit` (default) or `book`, each fork is implemented both
+ways, and `tests/interop/test_dialect_divergence.py` pins the actual digests,
+tau values, key counts and settlement hashes so neither dialect can silently
+collapse into the other.
+
+**It is declared on the wire.** `interop_profile` rides in the handshake beside
+the locked-model hashes, and `negotiation._check_dialect` refuses a stated
+difference in either direction — deliberately stricter than the model-family
+rule, which tolerates silence. A dialect disagreement becomes a message you
+answer before kickoff instead of a mutual zero discovered at the audit.
+
+### 8.2 Two things the kit does not settle either
+
+- **The tie award.** App. F table 17 gives `tie_score = 2` as "the score for
+  each side when the accumulated score against an opponent ends in a tie" — and
+  is silent on whether that *adds* to the sub-game totals or *replaces* them.
+  The kit's `report_consensus` vector pins the settlement serialization and says
+  nothing about aggregate semantics, so this forks `mutual_agreement.sha256`
+  under **either** dialect. We read it as `add` (`[interop].tie_award`), declare
+  it in the handshake, and refuse on mismatch.
+- **Turn order.** The book genuinely does not fix one. We play cop-first. That
+  is a free choice, but not a local one: two peers on opposite orders shake
+  hands, play, and only then disagree about the board. Also declared, also
+  refused on mismatch.
+
+### 8.3 What we do not claim
+
+`sign_terms` and `group_block`'s `signature` field keep their wire names because
+that is what the league reads, but neither is a signature in the cryptographic
+sense: both are unkeyed SHA-256 digests over data that travels in the same
+document, so any party can recompute them. They detect corruption in transit;
+they cannot prove authorship. Book ch. 5.5 asks for signing under a pre-supplied
+key, and **this project does not implement that** — stated here rather than left
+to be inferred from a field name.
+
 Twelve vectors are conformance-checked byte-for-byte today (`canonical_json`, `commit_reveal`,
 `delivery_contract`, `derive_starts`, `game_uid`, `joint_seed`, `locked_model`,
 `pairing_declaration`, `pheromone`, `report_consensus`, `scent_book_v3`, `smell_binding`,

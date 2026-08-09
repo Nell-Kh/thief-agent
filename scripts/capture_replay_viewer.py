@@ -69,6 +69,7 @@ def grab_window(window: ReplayWindow, out: Path) -> None:
 
 
 def main() -> None:
+    """Play a real match, save its logbook, and screen-grab the replay viewer."""
     config_dir = ROOT / "config"
     police = MatchRuntime(
         ConfigManager.load("police", config_dir), game_id="replay-demo", sub_game=1,

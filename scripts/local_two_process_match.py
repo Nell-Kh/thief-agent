@@ -94,6 +94,7 @@ def play_round(n: int, role: str, peer_url: str, group_id: str,
 
 
 def main() -> None:
+    """Parse the command line and play one local two-process match."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--start-role", required=True, choices=["police", "thief"],
                        help="role played in round 1; alternates every round after")

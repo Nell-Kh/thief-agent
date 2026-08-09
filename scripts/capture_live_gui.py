@@ -54,6 +54,7 @@ def grab_window(window: LiveWindow, out: Path) -> None:
 
 
 def main() -> None:
+    """Play a real two-runtime match and screen-grab the police live window."""
     config_dir = ROOT / "config"
     police = MatchRuntime(
         ConfigManager.load("police", config_dir), game_id="gui-demo", sub_game=1,

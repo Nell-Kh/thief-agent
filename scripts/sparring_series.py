@@ -103,6 +103,7 @@ def make_scratch_config(scratch_dir: Path, setting: str = "Haifa") -> Path:
 def run_sub_game(n: int, scratch_dir: Path, peer_url: str, our_group_id: str, us: str,
                  opponent: str, game_id: str, game_uid: str, handler_box: SwappableHandler,
                  artifacts_dir: Path, links: dict[str, Any], recipient: str) -> dict[str, Any]:
+    """Play sub-game ``n`` against the kit peer and return its scored row."""
     role = OUR_ROLE_FOR[n]
     expect_role = ROLE_THIEF if role == ROLE_POLICE else ROLE_POLICE
     config = ConfigManager.load(role, scratch_dir)
@@ -178,6 +179,7 @@ def run_sub_game(n: int, scratch_dir: Path, peer_url: str, our_group_id: str, us
 
 
 def main() -> None:
+    """Parse the command line and run the full sparring series against the kit peer."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", type=int, default=8801)
     parser.add_argument("--peer", default="http://127.0.0.1:8931/mcp")

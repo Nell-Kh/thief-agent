@@ -52,6 +52,7 @@ def git_head() -> str:
 def stub_service() -> SimpleNamespace:
     """A Gmail double for machines without credentials - same call shape."""
     def request(kind: str) -> SimpleNamespace:
+        """A stub Gmail request object that only reports what it was asked to do."""
         return SimpleNamespace(execute=lambda: print(f"  [stub gmail] {kind} accepted"))
 
     # ``userId`` mirrors the real Gmail API keyword, hence the noqa.

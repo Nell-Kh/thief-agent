@@ -684,18 +684,23 @@ history is clean (verified across every tree in every reachable commit), `.gitig
 every secret-bearing file, and `tests/unit/test_secrets_hygiene.py` re-checks all of it on every
 run. No row below affects the project mark.
 
-What remains is **personal account hygiene**, which cannot be done from inside the repository and
-is deliberately not marked ✔ while the credentials are still live. Ordered by real risk, not by
-row number: the Gmail **app password** first (app passwords bypass 2FA and grant far more than
-sending), then the **Render** token (`rnd_` = infrastructure API key), then the OAuth refresh
-token, then the two metered LLM keys.
+What remains is **personal account hygiene**, which cannot be done from inside the repository.
+`.env` now carries only `ANTHROPIC_API_KEY` - the one variable any module reads - so the
+remaining work is entirely provider-side: revoking the four keys quarantined out of it, of which
+two matter. The Gmail **app password** (app passwords bypass 2FA and grant far more than
+sending; this project never needed one, since Gmail here is OAuth scoped to `gmail.send`) and the
+**Render** token (`rnd_` is an infrastructure API key, not a game credential).
+
+**Descoped by decision, not oversight.** Two former rows were assessed and dropped as accepted
+risk: re-issuing the `token.json` refresh token and the `credentials.json` OAuth client (scoped
+to `gmail.send` alone, never committed), and relocating the checkout out of the synced OneDrive
+folder. Both remain documented in `docs/SECURITY.md` §2-§3 as runbook rather than as outstanding
+tasks, so the procedure is on record if the risk assessment ever changes.
 
 | # | Task | Priority | Owner | Status |
 |---|---|---|---|---|
 | 11.4 | **Secrets hygiene.** Repo side: **done and enforced** (clean history, ignore rules, 7-check hygiene suite). Account side: revocations still owed — no bearing on the grade, real bearing on the accounts | P0 | team | ◐ |
-| 11.4.1 | Rotate the `.env` secrets. **Repo side done**: only `ANTHROPIC_API_KEY` is read by any module, the other four were referenced nowhere, and all four are now quarantined out of `.env` into the git-ignored `SECRETS-TO-REVOKE.local.md`. **Revocation still owed, in this order: `GMAIL_APP_PASSWORD` (bypasses 2FA — highest real risk), `MCP_AUTH_TOKEN` (Render infrastructure key), then `OPENAI_API_KEY`, then rotate `ANTHROPIC_API_KEY`.** Consoles listed in `docs/SECURITY.md` §2 | P0 | team | ⏱ |
-| 11.4.2 | Revoke and re-issue `token.json` and the `credentials.json` OAuth client. Runbook in `docs/SECURITY.md` §2, `token.json` first: its access token is already expired but the **refresh token does not expire** and grants `gmail.send` as the account owner until explicitly revoked at myaccount.google.com/permissions | P0 | team | ⏱ |
-| 11.4.3 | Move the repo out of `OneDrive\Desktop`, or add it to OneDrive's exclusion list. `.gitignore` has no bearing on this — the sync client copies ignored files regardless. Documented in `docs/SECURITY.md` §3; the move itself is a manual step | P0 | team | ⏱ |
+| 11.4.1 | Rotate the `.env` secrets. **Repo side complete**: `.env` carries only `ANTHROPIC_API_KEY`, the sole variable any module reads; the other four were referenced nowhere and are quarantined into the git-ignored `SECRETS-TO-REVOKE.local.md`. **Provider-side revocation still owed for the two that matter — `GMAIL_APP_PASSWORD` (bypasses 2FA) and `MCP_AUTH_TOKEN` (Render infrastructure key)** — then delete the quarantine file. Consoles in `docs/SECURITY.md` §2 | P0 | team | ⏱ |
 | 11.4.5 | Add `docs/SECURITY.md`: what the project actually needs, revocation runbook per provider, storage-location guidance, what the suite enforces, and what to do if a secret is ever committed | P1 | team | ✔ |
 | 11.4.4 | Re-verify no secret was ever committed. Now automated: `tests/unit/test_secrets_hygiene.py` re-runs the full-history sweep on every test run, alongside six other checks (ignore rules, real ignore behaviour, nothing tracked, no credential material in any tracked file, a non-disclosing `.env-example`, and `.env` carrying only what the code reads) | P1 | team | ✔ |
 

@@ -22,6 +22,7 @@ from police_thief.infra.email.naming import (  # noqa: E402
 )
 from police_thief.infra.email.report_blocks import group_block  # noqa: E402
 from police_thief.infra.email.reports import declaration_payload  # noqa: E402
+from police_thief.infra.llm import effective_model  # noqa: E402
 from police_thief.shared.config import ConfigManager  # noqa: E402
 from police_thief.shared.sysinfo import hardware_spec  # noqa: E402
 from police_thief.shared.version import __version__  # noqa: E402
@@ -37,7 +38,10 @@ def write_declaration(args, ids: tuple[str, str], us: str, config: ConfigManager
             group_id=us, group_name=str(config.private_value("game", "group_name", us)),
             members=list(private.get("members", [])), repos=dict(private.get("repos", {})),
             mcp_servers={"self": args.public_url or f"http://127.0.0.1:{args.port}/mcp"},
-            llm_model=str(config.private_value("llm", "model", "template")),
+            llm_model=effective_model(
+                str(config.private_value("trash_talk", "provider", "template")),
+                str(config.private_value("llm", "model", "")),
+            ),
             hardware_spec=hardware_spec(), github_commit=git_head(),
             counted_games_played=args.games_played, code_version=__version__),
         group_block(

@@ -19,7 +19,7 @@ from ..domain.logbook import Logbook
 from ..domain.rules import is_trapped
 from ..domain.sealing import step0_record
 from ..domain.turnmsg import TurnMessage
-from ..infra.llm import TokenLedger, build_provider
+from ..infra.llm import TokenLedger, build_provider, effective_model
 from ..shared.config import ConfigManager
 from ..shared.sysinfo import hardware_spec
 from ..shared.version import __version__
@@ -77,7 +77,10 @@ class MatchRuntime(MatchReporting):
         self.step0 = self.book.append(
             step0_record(
                 spec=hardware_spec(),
-                model=str(config.private_value("llm", "model", "template")),
+                model=effective_model(
+                    str(config.private_value("trash_talk", "provider", "template")),
+                    str(config.private_value("llm", "model", "")),
+                ),
                 code_version=__version__,
                 github_commit=github_commit,
                 group_name=str(config.private_value("game", "group_name", "unknown")),

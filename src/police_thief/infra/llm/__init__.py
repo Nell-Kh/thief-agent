@@ -11,6 +11,7 @@ from .chain import (
     RateLimitedProvider,
     ThrottledProvider,
     build_provider,
+    effective_model,
 )
 from .ledger import TokenLedger
 from .template import TemplateProvider
@@ -26,5 +27,6 @@ __all__ = [
     "TokenLedger",
     "RateLimitedProvider",
     "build_provider",
+    "effective_model",
     "clip_words",
 ]

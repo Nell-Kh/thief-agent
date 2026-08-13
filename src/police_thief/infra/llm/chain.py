@@ -153,3 +153,30 @@ def build_provider(
         guarded = RateLimitedProvider(guarded, TokenBucket.per_minute(requests_per_minute))
     throttled = ThrottledProvider(guarded, template, every_n_steps)
     return FallbackProvider(throttled, template)
+
+
+def effective_model(provider_name: str, model: str) -> str:
+    """The model that will ACTUALLY produce hints on this machine, right now.
+
+    Declarations and Step-0 records used to stamp the *configured* model,
+    which read as a lie whenever the paid provider silently fell back: a
+    grader sees "claude-3-5-haiku" beside zero tokens. This answers with the
+    truth of the moment - the configured model only when its prerequisite
+    (an API key, an installed CLI) is present, and an explicit fallback
+    label naming what is missing otherwise.
+    """
+    import os
+    import shutil
+
+    if provider_name == "claude_api":
+        chosen = model or "claude-3-5-haiku-latest"
+        if os.environ.get("ANTHROPIC_API_KEY"):
+            return chosen
+        return f"template (fallback: {chosen} configured, ANTHROPIC_API_KEY absent)"
+    if provider_name == "claude_cli":
+        if shutil.which("claude"):
+            return model or "claude (via CLI)"
+        return "template (fallback: claude CLI not installed)"
+    if provider_name == "ollama":
+        return model or "ollama"
+    return "template"

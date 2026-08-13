@@ -1,7 +1,7 @@
 # Police-Thief P2P — Distributed Cops-and-Robbers over a Peer-to-Peer Network
 
 **Final project, "Orchestration of AI Agents" — Dept. of Computer Science, University of Haifa, 2026.**
-**Team code:** *TBD before first counted game (task 9.2.1)* · **Version:** 1.00 · **Tag:** `v1.0-submission` *(set at task 8.19.4)*
+**Team code:** `yanell11` · **Version:** 1.00 · **Tag:** `v1.0-submission` *(set at task 8.19.4)*
 
 Two autonomous agents — **cop** and **thief** — race on a discrete grid with **no central server
 and no referee**: P2P over FastMCP, SHA-256 commit-reveal integrity, decaying pheromone scent
@@ -542,8 +542,12 @@ other), `config/`, PRDs, `PLAN.md`, `TODO.md`, and a `v1.0-submission` tag. Link
 here and mirrored into the result JSON's four-link block (`reports.result_payload`) once the
 split lands:
 
-- Police-agent repository: `TBD — task 8.19`
-- Thief-agent repository: `TBD — task 8.19`
+- Police-agent repository: <https://github.com/Nell-Kh/police-agent>
+- Thief-agent repository: <https://github.com/Nell-Kh/thief-agent>
+
+Both trees are assembled from this repo's git index by `scripts/split_repos.py`, which
+also writes each repo's role-banner README and prints the push-and-tag steps. The same
+two URLs feed the result JSON's four-link block from `[game].repos` in both per-peer TOMLs.
 
 ## 12. Code-quality self-grade (rule #55)
 

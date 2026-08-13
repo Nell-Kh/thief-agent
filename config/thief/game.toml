@@ -9,7 +9,7 @@ group_name = "YANELL11"
 group_id = "yanell11"
 sub_game_number = 1
 members = ["NellKhoury", "YanalSerhan"]
-repos = { cop = "https://github.com/Nell-Kh/police-thief-p2p", thief = "https://github.com/Nell-Kh/police-thief-p2p" }
+repos = { cop = "https://github.com/Nell-Kh/police-agent", thief = "https://github.com/Nell-Kh/thief-agent" }
 
 [network]
 my_port = 8802                                 # MY MCP server port (thief)

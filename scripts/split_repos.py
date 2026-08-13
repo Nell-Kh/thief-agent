@@ -75,6 +75,10 @@ def role_banner(name: str, spec: dict[str, str], urls: dict[str, str]) -> str:
         f"Run this peer:\n\n"
         f"```\n{spec['serve']}\n```\n\n"
         f"Gates: `uv run ruff check src scripts tests` and `uv run pytest` (coverage ≥85%).\n\n"
+        f"The development story (branches, PRDs, PLAN, TODO - rule 9.4.1) is carried in\n"
+        f"`docs/`; the full commit-by-commit history lives in the development repository,\n"
+        f"<https://github.com/Nell-Kh/police-thief-p2p>, from whose git index this tree\n"
+        f"was assembled by `scripts/split_repos.py`.\n\n"
         f"---\n\n"
     )
 
@@ -117,7 +121,9 @@ def main() -> int:
         "     git init -b main && git add -A\n"
         '     git commit -m "initial submission tree"\n'
         "     git remote add origin <url> && git push -u origin main\n"
-        "     git tag v1.0-submission && git push origin v1.0-submission\n"
+        "     # ANNOTATED tag with a message - Appendix Gimel mandates -a and -m:\n"
+        '     git tag -a v1.0-submission -m "Final submission: Police-Thief P2P, team yanell11"\n'
+        "     git push origin v1.0-submission\n"
         "  3. verify the gates INSIDE build/<name>: uv sync && uv run pytest -q\n"
         "  4. grant the lecturer access / set visibility (rule #49)\n"
     )

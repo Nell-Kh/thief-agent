@@ -27,8 +27,13 @@ Then, once per repo (`police-agent`, then `thief-agent`):
    git commit -m "initial submission tree"
    git remote add origin https://github.com/Nell-Kh/<name>.git
    git push -u origin main
-   git tag v1.0-submission && git push origin v1.0-submission
+   git tag -a v1.0-submission -m "Final submission: Police-Thief P2P, team yanell11"
+   git push origin v1.0-submission
    ```
+
+   The tag MUST be annotated (`-a`) with a message (`-m`) — Appendix ג spells
+   out this exact command shape and the checklist demands the documented tag
+   be pushed, not merely created. Verify with `git show v1.0-submission`.
 
 3. Prove the published tree stands alone: fresh terminal, `cd build/<name>`,
    `uv sync && uv run pytest -q` — expect the same count as the dev repo.

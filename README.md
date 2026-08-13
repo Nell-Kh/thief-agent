@@ -469,6 +469,11 @@ peer) are tracked as open work in `docs/TODO.md` §8.14–§8.15, since they req
 
 ## 9. Results tables (reproduced from `notebooks/analysis.ipynb`)
 
+No reinforcement learning was used anywhere in this system — every brain is a hand-derived
+heuristic, so the learning-curve requirement (README mandatory item 4, ch. 9.4.2) does not
+apply. The empirical evidence standing in its place is the exhaustive tournament below:
+every strategy generation against every archetype, across all start positions.
+
 | Generation | Design | Capture rate | Mean steps | Max steps | Barrier use |
 |---|---|---|---|---|---|
 | 0 | Blind (known position, BFS) | n/a (oracle) | shortest-path | — | — |

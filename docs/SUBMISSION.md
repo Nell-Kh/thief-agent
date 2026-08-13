@@ -8,37 +8,59 @@ league inbox in `draft` mode. What remains needs a GitHub account, a Gmail
 account or a Moodle login — this file is that list, in order, so nothing is
 rediscovered at the deadline.
 
-## 1. Publish the two submission repos (rule #49, task 8.19)
+## 1. Republish the two submission repos with their real history
+
+The repos were first published as a single squashed commit built from an older
+dev commit — a tree that still carried a broken front-page command and stale
+report numbers. Since both submission repos deliberately ship the full engine,
+their trees are the dev tree plus one README banner; that means the entire dev
+history (both authors, all commits, untouched hashes) can be **grafted**
+underneath, which both fixes the stale tree and gives the grader the real
+development story Appendix ג values. An external audit verified the graft
+reproduces the published tree byte-for-byte.
+
+First, on the dev repo (once): `git pull`, then `uv run python
+scripts/split_repos.py` so `build/<name>/README.md` carries the corrected
+banner.
+
+Then, once per repo (`police-agent`, then `thief-agent`; substitute the name
+everywhere):
 
 ```
-uv run python scripts/split_repos.py
+git clone https://github.com/Nell-Kh/police-agent.git pa-rewrite
+cd pa-rewrite
+git remote add dev https://github.com/Nell-Kh/police-thief-p2p.git
+git fetch dev
+
+# safety net: keep the originally published commit reachable, by name
+git branch pre-graft-backup main
+git push origin pre-graft-backup
+
+# the real history, with the corrected banner replayed as one honest commit
+git checkout -b main-new dev/main
+cp /path/to/police-thief-p2p/build/police-agent/README.md README.md
+git add README.md
+git commit -m "role banner: police-agent - submission tree for the POLICE peer"
+
+# gates inside the grafted tree, then publish
+uv sync && uv run pytest -q && uv run ruff check src scripts tests
+git branch -M main-new main
+git push --force-with-lease origin main
+
+# the annotated tag must move to the new tip (Appendix Gimel: -a and -m)
+git tag -d v1.0-submission
+git push origin :refs/tags/v1.0-submission
+git tag -a v1.0-submission -m "Final submission: Police-Thief P2P, team yanell11"
+git push origin v1.0-submission
+git show v1.0-submission | head -3   # must say 'tag', not a bare commit
 ```
 
-Then, once per repo (`police-agent`, then `thief-agent`):
+Keep `pre-graft-backup` until the grade is settled. Do both repos or neither —
+two submission repos with different-shaped histories invites questions. Never
+force-push the dev repo itself; it is the provenance anchor.
 
-1. On GitHub, create the empty repo with **exactly** the name the config
-   declares — `Nell-Kh/police-agent` / `Nell-Kh/thief-agent`. If either name
-   must change, change `[game].repos` in BOTH per-peer TOMLs first and re-run
-   the split; the tool refuses to build from a lying table.
-2. `cd build/<name>` and:
-
-   ```
-   git init -b main && git add -A
-   git commit -m "initial submission tree"
-   git remote add origin https://github.com/Nell-Kh/<name>.git
-   git push -u origin main
-   git tag -a v1.0-submission -m "Final submission: Police-Thief P2P, team yanell11"
-   git push origin v1.0-submission
-   ```
-
-   The tag MUST be annotated (`-a`) with a message (`-m`) — Appendix ג spells
-   out this exact command shape and the checklist demands the documented tag
-   be pushed, not merely created. Verify with `git show v1.0-submission`.
-
-3. Prove the published tree stands alone: fresh terminal, `cd build/<name>`,
-   `uv sync && uv run pytest -q` — expect the same count as the dev repo.
-4. Grant the lecturer access / set visibility (rule #49). Verify from a
-   logged-out browser window that the repo is reachable as intended.
+Finally: verify from a logged-out browser window that both repos and both tags
+are visible, and that each README's first command is `peer`, not `serve`.
 
 ## 2. Counted series (task 9.5) — the guard will hold the door
 

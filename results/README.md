@@ -40,6 +40,13 @@ them, and are distinguishable without reading a filename: `league.counted` is
 
 ## What is deliberately *not* committed
 
-`.gitignore` excludes scratch only — `*.tmp`, `rows_checkpoint.json` (the
-crash-recovery file `services/series_guard.py` writes; evidence for us, never a
-document the league reads) and `*.superseded-*` archives of re-run series.
+Of *our own* output, `.gitignore` excludes scratch only — `*.tmp`,
+`rows_checkpoint.json` (the crash-recovery file `services/series_guard.py`
+writes; evidence for us, never a document the league reads) and
+`*.superseded-*` archives of re-run series. No evidence file is ever ignored.
+
+It also excludes secrets (`.env`, `credentials.json`, `token.json`, `*.pem`,
+`*.key` — rules #39/#40) and `instruction/*.pdf`, the lecturer's own course
+documents: they are read constantly and cited throughout `docs/`, but this repo
+is published as two public role repos and redistributing someone else's
+copyrighted course material is not ours to do (`docs/TODO.md` 11.5.11).

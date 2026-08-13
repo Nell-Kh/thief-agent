@@ -5,11 +5,11 @@
 version = "1.00"
 
 [game]
-group_name = "TEAM-TBD"
-group_id = "team-tbd"
+group_name = "YANELL11"
+group_id = "yanell11"
 sub_game_number = 1
-members = ["id-TBD"]
-repos = { cop = "https://github.com/TBD/police-agent", thief = "https://github.com/TBD/thief-agent" }
+members = ["NellKhoury", "YanalSerhan"]
+repos = { cop = "https://github.com/Nell-Kh/police-agent", thief = "https://github.com/Nell-Kh/thief-agent" }
 
 [network]
 my_port = 8801                                 # MY MCP server port (police)
@@ -17,12 +17,40 @@ opponent_url = "http://127.0.0.1:8802/mcp"     # the only thing I know about the
 turn_timeout_seconds = 180
 
 [strategy]
-# The competition brain (see notebooks/analysis.ipynb). Two proven choices:
-#  wall:WallPoliceBrain    - the guarantee: 1900/1900 vs everything, max 29/35 steps.
-#  hybrid:HybridPoliceBrain - hunt-first: ~12-step kills vs reference-style thieves
-#                             (1900/1900), but 1891/1900 vs an elite evader.
-# Default: the guarantee. Switch to hybrid against a known reference-fork opponent.
+# The competition brain (see notebooks/analysis.ipynb).
+#  wall:WallPoliceBrain - the league choice. Perfect information: 1900/1900 vs
+#    every archetype, max 29/35 steps. Under BELIEF from the contract's fixed
+#    start: captures Blind and Enhanced thieves at step 28.
+#  hybrid:HybridPoliceBrain - do NOT use in league play. Its ~12-step advantage
+#    is a perfect-information artifact; under belief it captures at step 34,
+#    i.e. SLOWER than the wall, and loses to an elite evader just the same.
+#    Kept only as the documented research alternative (notebook 9b, hybrid.py).
 police_class = "police_thief.domain.brain.wall:WallPoliceBrain"
+
+[interop]
+# Which of two lawful readings of the book we speak on the wire. Four places -
+# the commit seal, the scent clamp, the settlement serialization and the signed
+# terms shape - have a kit reading and a book reading, and BOTH are defensible
+# under the rulebook's academic-freedom clause. Picking one silently is the
+# failure: two lawful peers that disagree each conclude the other forged its
+# log, and rules #19/#35 then score both teams zero.
+#
+#   kit  - the class interop kit (copthief-league-protocol) and the reference
+#          peer it pins. Our 14 vendored vectors pass byte-for-byte under it.
+#   book - the printed formulae of ch. 4.3 and ch. 5.3.1, literally.
+#
+# Declared at the handshake beside the locked-model hashes, so a mismatch
+# refuses before kickoff instead of surfacing as a mutual zero at the audit.
+# See docs/REVIEW_HOSTILE.md H0-H4 and README.md section 8.
+profile = "kit"
+
+# Series tie: does the App. F award ADD to the accumulated sub-game totals, or
+# REPLACE them? The book is ambiguous and the kit does NOT settle it - its
+# report_consensus vector pins the serialization and says nothing about
+# aggregate semantics - so this forks the settlement hash under either dialect.
+# Declared separately for that reason. "add" is the reading this project has
+# always used; agree it with the opponent before a counted series.
+tie_award = "add"
 
 [deception]
 # The cop has no claim-feedback channel, so it never risks a directional
@@ -42,5 +70,16 @@ model = "claude-haiku"
 step_deadline_seconds = 30        # hard cap on LLM thinking per step
 
 [email]
+# The binding league address (rule #51, App. F variables table). This is NOT a
+# preference: report_blocks._is_armed() refuses to arm `counted` for any other
+# recipient, so a report addressed anywhere else scores nothing however well the
+# series went. It previously pointed at a team member's own inbox, which meant
+# every game we played was silently reported as a friendly.
 recipient = "yanalserhan3@gmail.com"
+
+# draft = build and park in Gmail Drafts; send = actually deliver.
+# Committed as `draft` on purpose: the repository's resting state is the
+# rehearsal state, so no demo, sparring run or accidental invocation can mail
+# the lecturer. Flip to "send" as a deliberate step when starting a COUNTED
+# series (docs/TODO.md 11.3.2) and flip it back afterwards.
 mode = "draft"

@@ -39,6 +39,13 @@ htmlcov/
 rows_checkpoint.json
 *.superseded-*
 
+# The lecturer's own course materials (assignment PDF + submission guidelines).
+# They are read constantly and cited throughout docs/, but this repo is split
+# into two PUBLIC role repos, and republishing someone else's copyrighted
+# course documents twice over is not ours to do. Keep them on disk, cite them
+# by name in docs/, never track them (docs/TODO.md 11.5.11).
+instruction/*.pdf
+
 # Local sync scratch (git bundles used to mirror the dev environment)
 .sync/
 

@@ -14,8 +14,12 @@ requires README, config/, PRDs, PLAN and TODO in each repo anyway. What
 differs is the front page: each README opens with a role banner naming which
 peer this repository submits, how to run it, and where its counterpart lives.
 
-Run ``uv run python scripts/split_repos.py``; it prints the push-and-tag
-steps that only a human with the GitHub account can perform.
+Run ``uv run python scripts/split_repos.py``. It builds the trees and points at
+``docs/SUBMISSION.md`` 1 for publishing them - the built tree is the CONTENT,
+never the procedure. Both role repos carry the full development history grafted
+under one banner commit, so they are re-published by re-grafting, never by
+``git init`` inside ``build/``; the README this tool writes is the only file
+that procedure copies out of here.
 """
 
 from __future__ import annotations
@@ -139,17 +143,19 @@ def main() -> int:
         files = sum(1 for _ in target.rglob("*") if _.is_file())
         print(f"built {target}  ({files} files)")
     print(
-        "\nnext steps (human, once per repo - replace <name> with police-agent / thief-agent):\n"
-        "  1. create the empty GitHub repo with EXACTLY the URL in the config\n"
-        "  2. cd build/<name>\n"
-        "     git init -b main && git add -A\n"
-        '     git commit -m "initial submission tree"\n'
-        "     git remote add origin <url> && git push -u origin main\n"
-        "     # ANNOTATED tag with a message - Appendix Gimel mandates -a and -m:\n"
-        '     git tag -a v1.0-submission -m "Final submission: Police-Thief P2P, team yanell11"\n'
-        "     git push origin v1.0-submission\n"
-        "  3. verify the gates INSIDE build/<name>: uv sync && uv run pytest -q\n"
-        "  4. grant the lecturer access / set visibility (rule #49)\n"
+        "\nbuilt trees are the CONTENT, not the procedure.\n"
+        "\n"
+        "Do NOT `git init` inside build/<name> and push it. Both role repos carry\n"
+        "the full development history grafted under a single banner commit, and a\n"
+        "fresh init would replace that history with one squashed commit - exactly\n"
+        "the mistake docs/SUBMISSION.md 1 was written to undo. It would also strand\n"
+        "the annotated v1.0-submission tag on an unreachable commit.\n"
+        "\n"
+        "next steps (human): follow docs/SUBMISSION.md 1 - 'Republish the two\n"
+        "submission repos with their real history' - once per repo. It grafts\n"
+        "dev/main under a replayed banner commit, runs the gates inside the\n"
+        "grafted tree, force-pushes with --force-with-lease, and MOVES the\n"
+        "annotated tag to the new tip. Copy build/<name>/README.md as the banner.\n"
     )
     return 0
 

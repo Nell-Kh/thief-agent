@@ -5,11 +5,11 @@
 version = "1.00"
 
 [game]
-group_name = "TEAM-TBD"
-group_id = "team-tbd"
+group_name = "YANELL11"
+group_id = "yanell11"
 sub_game_number = 1
-members = ["id-TBD"]
-repos = { cop = "https://github.com/TBD/police-agent", thief = "https://github.com/TBD/thief-agent" }
+members = ["NellKhoury", "YanalSerhan"]
+repos = { cop = "https://github.com/Nell-Kh/police-agent", thief = "https://github.com/Nell-Kh/thief-agent" }
 
 [network]
 my_port = 8802                                 # MY MCP server port (thief)
@@ -21,6 +21,31 @@ turn_timeout_seconds = 180
 # mobility (see notebooks/analysis.ipynb). Survives 60/72 vs the region cop where
 # the enhanced thief survived 0; still survives everything pursuit-style.
 thief_class = "police_thief.domain.brain.evade:EvadeThiefBrain"
+
+[interop]
+# Which of two lawful readings of the book we speak on the wire. Four places -
+# the commit seal, the scent clamp, the settlement serialization and the signed
+# terms shape - have a kit reading and a book reading, and BOTH are defensible
+# under the rulebook's academic-freedom clause. Picking one silently is the
+# failure: two lawful peers that disagree each conclude the other forged its
+# log, and rules #19/#35 then score both teams zero.
+#
+#   kit  - the class interop kit (copthief-league-protocol) and the reference
+#          peer it pins. Our 14 vendored vectors pass byte-for-byte under it.
+#   book - the printed formulae of ch. 4.3 and ch. 5.3.1, literally.
+#
+# Declared at the handshake beside the locked-model hashes, so a mismatch
+# refuses before kickoff instead of surfacing as a mutual zero at the audit.
+# See docs/REVIEW_HOSTILE.md H0-H4 and README.md section 8.
+profile = "kit"
+
+# Series tie: does the App. F award ADD to the accumulated sub-game totals, or
+# REPLACE them? The book is ambiguous and the kit does NOT settle it - its
+# report_consensus vector pins the serialization and says nothing about
+# aggregate semantics - so this forks the settlement hash under either dialect.
+# Declared separately for that reason. "add" is the reading this project has
+# always used; agree it with the opponent before a counted series.
+tie_award = "add"
 
 [deception]
 # The cop's capture claims reveal its belief every turn. Adaptive: while the
@@ -40,5 +65,16 @@ model = "claude-haiku"
 step_deadline_seconds = 30
 
 [email]
+# The binding league address (rule #51, App. F variables table). This is NOT a
+# preference: report_blocks._is_armed() refuses to arm `counted` for any other
+# recipient, so a report addressed anywhere else scores nothing however well the
+# series went. It previously pointed at a team member's own inbox, which meant
+# every game we played was silently reported as a friendly.
 recipient = "yanalserhan3@gmail.com"
+
+# draft = build and park in Gmail Drafts; send = actually deliver.
+# Committed as `draft` on purpose: the repository's resting state is the
+# rehearsal state, so no demo, sparring run or accidental invocation can mail
+# the lecturer. Flip to "send" as a deliberate step when starting a COUNTED
+# series (docs/TODO.md 11.3.2) and flip it back afterwards.
 mode = "draft"

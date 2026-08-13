@@ -114,9 +114,10 @@ binding parameter table of Appendix ו — see the table at the end.
 ## Guidelines ch. 17 final checklist (v3.00) — walked item by item (task 8.18.2)
 
 The guidelines document's own closing chapter (17, "רשימת בדיקה סופית" / final checklist,
-`instruction/software_submission_guidelines-V3.pdf` p.30) is the actual pre-submission
-checklist body — six sub-sections, walked here against the repo as it stands after the 8.18
-verification pass, not against a claim.
+course-issued `software_submission_guidelines-V3.pdf` p.30 — the lecturer's own material, so
+not redistributed in this public repo) is the actual pre-submission checklist body — six
+sub-sections, walked here against the repo as it stands after the 8.18 verification pass, not
+against a claim.
 
 **17.1 Mandatory structure & documentation**
 - ✔ Root `README.md` comprehensive project-guide level (rewritten as the academic report, 8.17).

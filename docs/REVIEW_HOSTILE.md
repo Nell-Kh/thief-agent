@@ -1,16 +1,40 @@
 # Adversarial Review — police-thief-p2p
 
+> ## ⚠️ This is a POINT-IN-TIME review, not a status page
+>
+> It was written against the tree as it stood at **699 tests / 97.8 % coverage**, before task
+> 11.1 was worked. Its findings are deliberately left **verbatim**: a hostile review quietly
+> rewritten once its findings are fixed stops being evidence that the review ever happened,
+> and the repo's whole claim to honesty rests on keeping the unflattering version.
+>
+> So read every "is" below as "was, on the review date". What actually became of the headline
+> blockers — each verifiable in one command:
+>
+> | Finding | Then | Now |
+> |---|---|---|
+> | **B1** one repo, duplicated URLs, README §11 says `TBD — task 8.19` | open | **fixed** — two published role repos, both TOMLs name `police-agent` / `thief-agent`, README §11 carries both real URLs (TODO 11.1.3, 11.1.4) |
+> | **B2** no submission tag | open | **fixed** — annotated `v1.0-submission` pushed on both role repos (TODO 11.1.12, 11.1.13) |
+> | **B3** zero games against a real opponent | open | **partly** — a live six-sub-game series against the kit's own independently authored peer, won 90–30, `ALL SETS AGREE` on the settlement hash. Still **not** a counted league series: rule #31's two counted games against different teams remain open (TODO 11.3.2, 11.3.3) |
+> | **B4** every report disarmed by a wrong recipient | open | **fixed** — recipient corrected and `counted_series_blockers()` now refuses to start a counted series that cannot score (TODO 11.1.6, 11.1.7) |
+> | **M6** `TEAM-TBD` / `id-TBD` / `github.com/TBD/…` in committed artifacts | open | **mostly** — `results/**` declarations and `scripts/_scratch_config_sparring/` now carry the real identity; one instance survives inside a sealed replay-demo payload that cannot be edited without breaking its own `Verified OK` (TODO 11.3.6) |
+>
+> `docs/TODO.md` §11 is the live status; this file is the audit trail.
+
 **Reviewer stance:** maximally hostile. Every claim below was verified against the source,
 the git history, a full test run, and the two PDFs — not against `docs/COMPLIANCE.md`.
 
-**Verified environment:** 699 tests pass, 97.8 % coverage, `ruff check .` clean, Python 3.10.
-Those three things are real. Almost nothing else that faces *outward* is.
+**Verified environment (on the review date):** 699 tests pass, 97.8 % coverage, `ruff check .`
+clean, Python 3.10. Those three things are real. Almost nothing else that faces *outward* is.
 
 **Sources of authority used, in order:**
-1. `instruction/police_thief_p2p.pdf` — Appendix ו (binding parameter table + Mandatory Rules
-   1–5), Appendix ה (rules #1–#55), Appendix ג (submission), Appendix ב (config), ch. 3/5/9.
-2. `instruction/software_submission_guidelines-V3.pdf` v3.00.
+1. The course assignment PDF, `police_thief_p2p.pdf` — Appendix ו (binding parameter table +
+   Mandatory Rules 1–5), Appendix ה (rules #1–#55), Appendix ג (submission), Appendix ב
+   (config), ch. 3/5/9.
+2. The course submission guidelines, `software_submission_guidelines-V3.pdf` v3.00.
 3. The `copthief-league-protocol` kit — **not** an authority. See §H0.
+
+Both PDFs are the lecturer's own course materials. They are **not redistributed here** — this
+is a public repository — so the citations above name them rather than link a path in the tree.
 
 ---
 

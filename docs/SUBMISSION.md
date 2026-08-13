@@ -10,18 +10,27 @@ rediscovered at the deadline.
 
 ## 1. Republish the two submission repos with their real history
 
-The repos were first published as a single squashed commit built from an older
-dev commit — a tree that still carried a broken front-page command and stale
-report numbers. Since both submission repos deliberately ship the full engine,
-their trees are the dev tree plus one README banner; that means the entire dev
-history (both authors, all commits, untouched hashes) can be **grafted**
-underneath, which both fixes the stale tree and gives the grader the real
-development story Appendix ג values. An external audit verified the graft
-reproduces the published tree byte-for-byte.
+**This is the repeatable procedure, not a one-off.** Because both role repos are
+"the dev tree plus one README banner", *any* change to the dev tree — a doc fix,
+a new counted-series artifact, anything — has to reach them, and the honest way
+to do that is to re-graft rather than to hand-edit a published repo. Hand-edits
+also silently vanish the next time this runbook is run.
 
-First, on the dev repo (once): `git pull`, then `uv run python
-scripts/split_repos.py` so `build/<name>/README.md` carries the corrected
-banner.
+It started as a repair: the repos were first published as a single squashed
+commit built from an older dev commit, a tree that still carried a broken
+front-page command and stale report numbers. Since both repos deliberately ship
+the full engine, the entire dev history (both authors, all commits, untouched
+hashes) can be **grafted** underneath the banner commit, which fixes the stale
+tree and gives the grader the real development story Appendix ג values. An
+external audit verified the graft reproduces the published tree byte-for-byte.
+
+Run it whenever `main` moves on the dev repo. Each run leaves exactly one banner
+commit on top of the real history — the shape never drifts, however many times
+you re-graft.
+
+First, on the dev repo (once): commit and `git push origin main`, then `uv run
+python scripts/split_repos.py` so `build/<name>/README.md` carries the current
+banner over the current report.
 
 Then, once per repo (`police-agent`, then `thief-agent`; substitute the name
 everywhere):
@@ -32,9 +41,10 @@ cd pa-rewrite
 git remote add dev https://github.com/Nell-Kh/police-thief-p2p.git
 git fetch dev
 
-# safety net: keep the originally published commit reachable, by name
-git branch pre-graft-backup main
-git push origin pre-graft-backup
+# safety net: keep the currently published commit reachable, by name.
+# On a re-graft the branch already exists, so move it to today's tip:
+git branch -f pre-graft-backup main
+git push -f origin pre-graft-backup
 
 # the real history, with the corrected banner replayed as one honest commit
 git checkout -b main-new dev/main
@@ -47,7 +57,9 @@ uv sync && uv run pytest -q && uv run ruff check src scripts tests
 git branch -M main-new main
 git push --force-with-lease origin main
 
-# the annotated tag must move to the new tip (Appendix Gimel: -a and -m)
+# the annotated tag must move to the new tip (Appendix Gimel: -a and -m).
+# A tag left on the old tip is worse than no tag: it points the grader at a
+# tree that is not the one you are submitting.
 git tag -d v1.0-submission
 git push origin :refs/tags/v1.0-submission
 git tag -a v1.0-submission -m "Final submission: Police-Thief P2P, team yanell11"

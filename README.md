@@ -541,18 +541,25 @@ screen-grab the actual Tk windows — not mocked or hand-drawn.
 
 ## 11. Cross-repo links
 
-Per rules #49/#50, the submission splits this development repo into two per-role repositories
-(`police-agent`, `thief-agent`) at task 8.19, each carrying its own README (cross-linking the
-other), `config/`, PRDs, `PLAN.md`, `TODO.md`, and a `v1.0-submission` tag. Links are filled in
-here and mirrored into the result JSON's four-link block (`reports.result_payload`) once the
-split lands:
+Per rules #49/#50, this development repo is split into two per-role repositories
+(`police-agent`, `thief-agent`), each carrying its own README (cross-linking the other),
+`config/`, PRDs, `PLAN.md`, `TODO.md`, and an annotated `v1.0-submission` tag. Both are
+published, both are publicly reachable, and both links are mirrored into the result JSON's
+four-link block (`reports.result_payload`):
 
 - Police-agent repository: <https://github.com/Nell-Kh/police-agent>
 - Thief-agent repository: <https://github.com/Nell-Kh/thief-agent>
 
-Both trees are assembled from this repo's git index by `scripts/split_repos.py`, which
-also writes each repo's role-banner README and prints the push-and-tag steps. The same
-two URLs feed the result JSON's four-link block from `[game].repos` in both per-peer TOMLs.
+Both trees are assembled from this repo's git index by `scripts/split_repos.py`, which also
+writes each repo's role-banner README; `docs/SUBMISSION.md` §1 carries the runbook that grafts
+the real development history underneath that banner, so each role repo shows the full
+commit-by-commit story rather than one squashed tree. The same two URLs feed the result JSON's
+four-link block from `[game].repos` in both per-peer TOMLs.
+
+Only the front page differs between the two role repos: every other tracked path is
+byte-identical to this one. Rule #50 sets a floor, not a ceiling, and the mutual audit obliges
+each peer to re-verify the other's physics, so neither repo can be reduced to "its own half" of
+the engine — see `scripts/split_repos.py` for the partition decision in full.
 
 ## 12. Code-quality self-grade (rule #55)
 

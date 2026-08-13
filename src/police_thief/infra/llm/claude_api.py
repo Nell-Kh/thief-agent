@@ -8,6 +8,7 @@ against the agreed series budget. The API key comes from the environment only
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 from .base import (
     STYLE_VAGUE,
@@ -19,7 +20,30 @@ from .base import (
 )
 from .ledger import TokenLedger
 
-DEFAULT_MODEL = "claude-3-5-haiku-latest"
+DEFAULT_MODEL = "claude-haiku-4-5"
+
+
+def anthropic_key() -> str | None:
+    """The API key: process environment first, then the checkout's ``.env``.
+
+    ``.env-example`` always said "copy to .env and fill in", but nothing ever
+    read the copy - the game only saw a key `export`ed in the same shell, a
+    dance that cost a live rehearsal its tokens when a placeholder overwrote
+    the real key. One narrow loader closes the gap: this single variable,
+    from the working directory's ``.env``, template placeholders ignored.
+    """
+    key = os.environ.get("ANTHROPIC_API_KEY")
+    if key:
+        return key
+    env_file = Path.cwd() / ".env"
+    if not env_file.is_file():
+        return None
+    for line in env_file.read_text(encoding="utf-8").splitlines():
+        if line.strip().startswith("ANTHROPIC_API_KEY="):
+            value = line.strip().split("=", 1)[1].strip().strip("'\"")
+            if value and not value.startswith("<"):
+                return value
+    return None
 
 SYSTEM_PROMPT = (
     "You are the {role} in a cops-and-robbers chase set in {area}. "
@@ -68,13 +92,16 @@ class ClaudeApiProvider(HintProvider):
         """
         if self._client is not None:
             return self._client
-        if not os.environ.get("ANTHROPIC_API_KEY"):
-            raise ProviderError("ANTHROPIC_API_KEY is not set")
+        key = anthropic_key()
+        if not key:
+            raise ProviderError("ANTHROPIC_API_KEY is not set (environment or .env)")
         try:
             import anthropic
         except ImportError as error:  # pragma: no cover - dependency is declared
             raise ProviderError("anthropic SDK is not installed") from error
-        self._client = anthropic.Anthropic(timeout=self._timeout_sec, max_retries=0)
+        self._client = anthropic.Anthropic(
+            api_key=key, timeout=self._timeout_sec, max_retries=0
+        )
         return self._client
 
     def generate(self, request: HintRequest) -> str:

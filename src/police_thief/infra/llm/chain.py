@@ -160,17 +160,18 @@ def effective_model(provider_name: str, model: str) -> str:
 
     Declarations and Step-0 records used to stamp the *configured* model,
     which read as a lie whenever the paid provider silently fell back: a
-    grader sees "claude-3-5-haiku" beside zero tokens. This answers with the
+    grader sees a paid model name beside zero tokens. This answers with the
     truth of the moment - the configured model only when its prerequisite
     (an API key, an installed CLI) is present, and an explicit fallback
     label naming what is missing otherwise.
     """
-    import os
     import shutil
 
     if provider_name == "claude_api":
-        chosen = model or "claude-3-5-haiku-latest"
-        if os.environ.get("ANTHROPIC_API_KEY"):
+        from .claude_api import DEFAULT_MODEL, anthropic_key
+
+        chosen = model or DEFAULT_MODEL
+        if anthropic_key():
             return chosen
         return f"template (fallback: {chosen} configured, ANTHROPIC_API_KEY absent)"
     if provider_name == "claude_cli":

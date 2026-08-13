@@ -17,15 +17,20 @@ opponent_url = "http://127.0.0.1:8802/mcp"     # the only thing I know about the
 turn_timeout_seconds = 180
 
 [strategy]
-# The competition brain (see notebooks/analysis.ipynb).
-#  wall:WallPoliceBrain - the league choice. Perfect information: 1900/1900 vs
-#    every archetype, max 29/35 steps. Under BELIEF from the contract's fixed
-#    start: captures Blind and Enhanced thieves at step 28.
+# The competition brain (see notebooks/analysis.ipynb and README 6).
+#  seal:SealPoliceBrain - the league choice. Wall the board, cross the door,
+#    lock it behind you. Under BELIEF from the contract's fixed start - the
+#    only condition a league match is played in - it captures EVERY archetype:
+#    Blind @29, Enhanced @29, and the elite evader @30 that survives both
+#    older cops (the first internet rehearsal lost all six sub-games to it).
+#  wall:WallPoliceBrain - round 2. Perfect information: 1900/1900 vs every
+#    archetype; under belief the doorway is campable and the elite evader
+#    survives at 34. Superseded by seal, kept as its documented base.
 #  hybrid:HybridPoliceBrain - do NOT use in league play. Its ~12-step advantage
 #    is a perfect-information artifact; under belief it captures at step 34,
 #    i.e. SLOWER than the wall, and loses to an elite evader just the same.
 #    Kept only as the documented research alternative (notebook 9b, hybrid.py).
-police_class = "police_thief.domain.brain.wall:WallPoliceBrain"
+police_class = "police_thief.domain.brain.seal:SealPoliceBrain"
 
 [interop]
 # Which of two lawful readings of the book we speak on the wire. Four places -

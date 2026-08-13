@@ -111,6 +111,15 @@ class RegionPoliceBrain(BlindPoliceBrain):
                 continue
             trial = Board(view.board.size, set(view.board.barriers) | {cell})
             size = region_size(trial, view.position, view.target)
+            cut_off = _reach(distance_field(trial, view.position), view.target) >= UNREACHABLE
+            if cut_off and trial.free_neighbours(view.target):
+                # A stone that cuts us off from the hunt is only ever right
+                # when it BOXES the thief outright (rule 47: no free exit
+                # left). Anything less is self-exile: the believed pocket may
+                # be wrong by a cell, and a cop that cannot reach its prey
+                # hands the thief the rest of the clock - the exact loss a
+                # missed doorway trap inflicted in the first live blind run.
+                continue
             exits = len(trial.free_neighbours(view.target))
             worthwhile = size <= here - self.MIN_SHRINK or (
                 here <= self.ENDGAME and exits < exits_now

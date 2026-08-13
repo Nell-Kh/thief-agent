@@ -72,6 +72,12 @@ class PeerClient:
             f"{tool}: opponent unreachable after {attempts} attempts ({last_error})"
         )
 
+    def close(self) -> None:
+        """Release the transport's persistent connection, when it holds one."""
+        closer = getattr(self._transport, "close", None)
+        if callable(closer):
+            closer()
+
     def negotiate(self, terms: dict[str, Any]) -> dict[str, Any]:
         """Open the match by offering our locked terms."""
         return self.call("negotiate", terms)

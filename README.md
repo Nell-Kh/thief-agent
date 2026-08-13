@@ -507,7 +507,7 @@ All rows above are **perfect information**. Under belief, from the contract's fi
 
 | Engineering | Value |
 |---|---|
-| Test suite | 779 tests collected (1 environment-dependent skip; the suite itself verifies this number) |
+| Test suite | 782 tests collected (1 environment-dependent skip; the suite itself verifies this number) |
 | Coverage | 97.3% (gate: ≥ 85%, `pyproject.toml fail_under=85`) |
 | Token budget utilization (measured, full series) | ~14% of the ~200k series budget |
 | Interop conformance vectors, byte-exact | 14 vendored fixtures, 14 dedicated tests |
@@ -567,7 +567,7 @@ Rule #55 restricts self-grading to code quality, never the league outcome — th
 that, and only that, measured against this repository's own standing definition of done
 (`docs/TODO.md`, front matter):
 
-- **Tests & coverage:** 779 tests collected, 97.3% coverage against an 85%-floor gate that fails
+- **Tests & coverage:** 782 tests collected, 97.3% coverage against an 85%-floor gate that fails
   the whole suite if crossed — this is a hard CI gate, not an aspiration. The suite count is
   asserted by the suite itself (`test_readme_integrity.py`), so this line cannot silently rot.
 - **Lint:** `ruff check .` clean against the configured rule families (E,F,W,I,N,UP,B,C4,SIM),

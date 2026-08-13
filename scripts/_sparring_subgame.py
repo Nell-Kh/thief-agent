@@ -93,32 +93,36 @@ def run_sub_game(n: int, scratch_dir: Path, peer_url: str, our_group_id: str, us
     greeting = build_terms(config, peer_id=our_group_id, games_played=0, sub_game=n,
                            step0_commit=matchrt.step0_commit)
     print(f"\n=== sub-game {n}: we are {role} ===")
-    negotiate_patiently(client, greeting, announce=lambda message: print(f"  {message}"))
-    wait_for(lambda: handler.opponent_terms, NEGOTIATE_WAIT_TIMEOUT,
-            f"opponent's greeting for sub-game {n}")
-    their_group = handler.opponent_terms.get("group_id")
-    if their_group != opponent:
-        raise RuntimeError(f"sub-game {n}: opponent declared group_id {their_group!r}, "
-                           f"expected {opponent!r}")
-    print(f"  negotiated: opponent={their_group}, role={handler.opponent_terms.get('role')}")
+    try:
+        negotiate_patiently(client, greeting, announce=lambda message: print(f"  {message}"))
+        wait_for(lambda: handler.opponent_terms, NEGOTIATE_WAIT_TIMEOUT,
+                f"opponent's greeting for sub-game {n}")
+        their_group = handler.opponent_terms.get("group_id")
+        if their_group != opponent:
+            raise RuntimeError(f"sub-game {n}: opponent declared group_id {their_group!r}, "
+                               f"expected {opponent!r}")
+        print(f"  negotiated: opponent={their_group}, "
+              f"role={handler.opponent_terms.get('role')}")
 
-    play_networked(role, matchrt, client, handler)
-    outcome_type = (matchrt.result or {}).get("type", "undecided")
-    print(f"  settled locally: {outcome_type} after {matchrt.view.step} steps")
+        play_networked(role, matchrt, client, handler)
+        outcome_type = (matchrt.result or {}).get("type", "undecided")
+        print(f"  settled locally: {outcome_type} after {matchrt.view.step} steps")
 
-    if n < SUB_GAMES:
-        # Stage sub-game n+1's handler NOW: the kit greets the next sub-game the
-        # instant its audit is posted, and the box promotes this on the mismatch.
-        next_role = OUR_ROLE_FOR[n + 1]
-        handler_box.pending = InboundHandler(
-            our_terms=our_terms, our_extras=negotiate_extras(next_role, n + 1),
-            expect_role=ROLE_THIEF if next_role == ROLE_POLICE else ROLE_POLICE,
-            reorder_window=4,
-        )
-    disclosure = matchrt.disclosure()
-    client.submit_audit(disclosure)
-    their_disclosure = wait_for(lambda: handler.audit, NEGOTIATE_WAIT_TIMEOUT,
-                               f"opponent's audit disclosure for sub-game {n}")
+        if n < SUB_GAMES:
+            # Stage sub-game n+1's handler NOW: the kit greets the next sub-game the
+            # instant its audit is posted, and the box promotes this on the mismatch.
+            next_role = OUR_ROLE_FOR[n + 1]
+            handler_box.pending = InboundHandler(
+                our_terms=our_terms, our_extras=negotiate_extras(next_role, n + 1),
+                expect_role=ROLE_THIEF if next_role == ROLE_POLICE else ROLE_POLICE,
+                reorder_window=4,
+            )
+        disclosure = matchrt.disclosure()
+        client.submit_audit(disclosure)
+        their_disclosure = wait_for(lambda: handler.audit, NEGOTIATE_WAIT_TIMEOUT,
+                                   f"opponent's audit disclosure for sub-game {n}")
+    finally:
+        client.close()  # one held session per sub-game, never one per series
     their_report = audit_disclosure(their_disclosure, contract, **matchrt.audit_evidence())
     print(f"  our audit of their disclosure: {their_report.verdict}"
          + ("" if their_report.passed else f" - {their_report.violations}"))

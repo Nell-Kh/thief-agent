@@ -70,17 +70,21 @@ def play_round(n: int, role: str, peer_url: str, group_id: str,
     print(f"\n[{role}] === round {n}: we are {role} ===")
     greeting = build_terms(config, peer_id=group_id, games_played=0, sub_game=n,
                            step0_commit=matchrt.step0_commit)
-    negotiate_patiently(client, greeting, announce=lambda message: print(f"[{role}] {message}"))
-    wait_for(lambda: handler.opponent_terms, NEGOTIATE_WAIT_TIMEOUT,
-            f"opponent's greeting for round {n}")
-    print(f"[{role}] negotiated OK with {handler.opponent_terms.get('group_id')}")
+    try:
+        negotiate_patiently(client, greeting,
+                            announce=lambda message: print(f"[{role}] {message}"))
+        wait_for(lambda: handler.opponent_terms, NEGOTIATE_WAIT_TIMEOUT,
+                f"opponent's greeting for round {n}")
+        print(f"[{role}] negotiated OK with {handler.opponent_terms.get('group_id')}")
 
-    play_networked(role, matchrt, client, handler)
-    outcome_type = (matchrt.result or {}).get("type", "undecided")
-    print(f"[{role}] settled: {outcome_type} after {matchrt.view.step} steps")
+        play_networked(role, matchrt, client, handler)
+        outcome_type = (matchrt.result or {}).get("type", "undecided")
+        print(f"[{role}] settled: {outcome_type} after {matchrt.view.step} steps")
 
-    disclosure = matchrt.disclosure()
-    client.submit_audit(disclosure)
+        disclosure = matchrt.disclosure()
+        client.submit_audit(disclosure)
+    finally:
+        client.close()  # one held session per sub-game, never one per series
     their_disclosure = wait_for(lambda: handler.audit, NEGOTIATE_WAIT_TIMEOUT,
                                f"opponent's audit disclosure for round {n}")
     report = audit_disclosure(their_disclosure, contract, **matchrt.audit_evidence())

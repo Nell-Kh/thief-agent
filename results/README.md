@@ -21,13 +21,18 @@ one says so in its own `league` block:
 "league": { "counted": false, "reason": "friendly" }
 ```
 
-- `result_self-play-opponent-vs-team-tbd.json` — one sub-game, self-play.
-- `sparring_series/` — six sub-games against a local sparring peer.
+- `result_self-play-opponent-vs-yanell11.json` — one sub-game, self-play, under
+  the real team identity and the real submission-repo URLs.
+- `sparring_series/` — a full six-sub-game series played live over MCP against
+  the class interop kit's own sparring peer (an independently authored
+  implementation), under the real identity. Both mutual audits verified every
+  sub-game, and the kit's `check_artifacts.py` two-directory join against the
+  peer's own artifact bundle printed `ALL SETS AGREE` — including agreement on
+  `mutual_agreement.sha256`, the settlement hash a real pairing is scored on.
 
-The group identity in them is still placeholder (`team-tbd`, `id-TBD`,
-`github.com/TBD/…`) because no real opponent has been played yet. They are
-committed as evidence that the pipeline emits the four files in the right shape
-and that the audit passes end to end — not as evidence of league play.
+They are committed as evidence that the pipeline emits the four files in the
+right shape and that the cross-implementation audit passes end to end — not as
+evidence of league play.
 
 Counted games against real opponents (`docs/TODO.md` 11.3) land here alongside
 them, and are distinguishable without reading a filename: `league.counted` is

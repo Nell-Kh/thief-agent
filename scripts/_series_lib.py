@@ -27,6 +27,7 @@ from police_thief.infra.mcp_client import PeerUnreachableError  # noqa: E402
 from police_thief.infra.mcp_server import build_server  # noqa: E402
 from police_thief.services.inbound import InboundHandler  # noqa: E402
 from police_thief.services.match_runtime import MatchRuntime  # noqa: E402
+from police_thief.services.turn_reorder import HandshakeRejectedError  # noqa: E402
 
 #: Hard stop on a sub-game's turn exchange, so a wedged peer can never hang us.
 SAFETY_CAP = 200
@@ -64,22 +65,50 @@ class SwappableHandler:
     def __init__(self) -> None:
         """Start with no handler bound; the first sub-game installs one."""
         self.current: InboundHandler | None = None
+        self.pending: InboundHandler | None = None
+
+    def _active(self) -> InboundHandler:
+        """The bound handler, or a clean retryable refusal while none is.
+
+        An opponent that boots faster than us can greet in the window between
+        our server binding and the first sub-game installing its handler.
+        Crashing that call with ``AttributeError`` reads as a broken peer and
+        burned a real kit-sparring run; a named not-ready error reads as
+        "try again", which every driver's patient-negotiation loop already does.
+        """
+        if self.current is None:
+            raise RuntimeError("peer is booting - no sub-game handler bound yet, retry")
+        return self.current
 
     def negotiate(self, message: dict[str, Any]) -> dict[str, Any]:
-        """Forward a handshake to the active handler."""
-        return self.current.negotiate(message)
+        """Forward a handshake; promote the pending handler on a boundary race.
+
+        A fast opponent greets sub-game n+1 the instant its audit of n is
+        posted, while this side is still writing artifacts - the old handler
+        then refuses with a sub-game mismatch, and the kit's driver treats a
+        refusal as fatal (correctly: no amount of waiting fixes a mismatch).
+        When the next sub-game's handler is already staged in ``pending``, the
+        mismatch IS the signal to promote it and answer as the new sub-game.
+        """
+        try:
+            return self._active().negotiate(message)
+        except HandshakeRejectedError:
+            if self.pending is None:
+                raise
+            self.current, self.pending = self.pending, None
+            return self.current.negotiate(message)
 
     def receive_turn(self, message: dict[str, Any]) -> dict[str, Any]:
         """Forward a turn to the active handler."""
-        return self.current.receive_turn(message)
+        return self._active().receive_turn(message)
 
     def submit_audit(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Forward an audit disclosure to the active handler."""
-        return self.current.submit_audit(payload)
+        return self._active().submit_audit(payload)
 
     def receive_control(self, message: dict[str, Any]) -> dict[str, Any]:
         """Forward a control message to the active handler."""
-        return self.current.receive_control(message)
+        return self._active().receive_control(message)
 
 
 def start_server(handler_box: SwappableHandler, port: int,

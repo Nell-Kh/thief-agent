@@ -78,9 +78,14 @@ def run_sub_game(n: int, scratch_dir: Path, peer_url: str, our_group_id: str, us
     contract = config.contract
     our_terms = terms_from_contract(contract)
     our_extras = negotiate_extras(role, n)
-    handler = InboundHandler(our_terms=our_terms, our_extras=our_extras,
-                             expect_role=expect_role, reorder_window=4)
-    handler_box.current = handler
+    promoted = handler_box.current
+    if promoted is not None and promoted.declared_sub_game == n:
+        handler = promoted  # a boundary-race greeting already landed in it
+        print(f"  reusing the promoted handler for sub-game {n} (early greeting captured)")
+    else:
+        handler = InboundHandler(our_terms=our_terms, our_extras=our_extras,
+                                 expect_role=expect_role, reorder_window=4)
+        handler_box.current = handler
 
     matchrt = MatchRuntime(config, game_id=game_id, sub_game=n, github_commit=git_head())
     client = PeerClient(McpHttpTransport(peer_url), contract.network, contract.rate_limiter)
@@ -101,6 +106,15 @@ def run_sub_game(n: int, scratch_dir: Path, peer_url: str, our_group_id: str, us
     outcome_type = (matchrt.result or {}).get("type", "undecided")
     print(f"  settled locally: {outcome_type} after {matchrt.view.step} steps")
 
+    if n < SUB_GAMES:
+        # Stage sub-game n+1's handler NOW: the kit greets the next sub-game the
+        # instant its audit is posted, and the box promotes this on the mismatch.
+        next_role = OUR_ROLE_FOR[n + 1]
+        handler_box.pending = InboundHandler(
+            our_terms=our_terms, our_extras=negotiate_extras(next_role, n + 1),
+            expect_role=ROLE_THIEF if next_role == ROLE_POLICE else ROLE_POLICE,
+            reorder_window=4,
+        )
     disclosure = matchrt.disclosure()
     client.submit_audit(disclosure)
     their_disclosure = wait_for(lambda: handler.audit, NEGOTIATE_WAIT_TIMEOUT,

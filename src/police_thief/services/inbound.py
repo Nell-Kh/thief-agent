@@ -43,6 +43,16 @@ class InboundHandler:
         return self._expect_role
 
     @property
+    def declared_sub_game(self) -> int:
+        """The sub-game number this handler's pairing declaration names.
+
+        Series drivers swap one handler per sub-game; at the boundary they need
+        to ask an already-installed handler which sub-game it belongs to, so an
+        early greeting promoted into it is reused instead of overwritten.
+        """
+        return int(self._our_extras.get("sub_game_number", 0))
+
+    @property
     def reorder_window(self) -> int:
         """How many steps ahead of the next-expected step may arrive early."""
         return self._reorder.reorder_window

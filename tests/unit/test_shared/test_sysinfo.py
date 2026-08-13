@@ -51,7 +51,9 @@ def test_ram_falls_back_from_posix_to_windows_to_macos(monkeypatch) -> None:
         """Refuse the POSIX probe, forcing the next fallback."""
         raise OSError("no sysconf here")
 
-    monkeypatch.setattr(sysinfo.os, "sysconf", no_posix)
+    # raising=False: Windows has no os.sysconf at all, and this test must run
+    # there too - the fake then simply provides the attribute it patches away.
+    monkeypatch.setattr(sysinfo.os, "sysconf", no_posix, raising=False)
     monkeypatch.setattr(sysinfo, "_windows_ram_bytes", lambda: 8 * 1024**3)
     assert sysinfo._total_ram_gb() == 8.0
 
@@ -79,8 +81,18 @@ def test_cpu_mhz_falls_back_from_proc_to_windows_to_macos(monkeypatch, tmp_path)
 
 @pytest.mark.parametrize("probe", ["_windows_ram_bytes", "_windows_cpu_mhz"])
 def test_the_windows_probes_are_safe_to_call_on_any_platform(probe: str) -> None:
-    """They must degrade to zero off-Windows, never raise mid-declaration."""
-    assert getattr(sysinfo, probe)() in (0, 0.0)
+    """Off-Windows they degrade to zero, never raising mid-declaration.
+
+    On real Windows the same call must report the actual machine - the first
+    genuine Windows run failed here because the test asserted the off-platform
+    zero unconditionally, calling the probe broken on the one platform it is
+    FOR (and proving, accidentally, that it works: it returned the real RAM).
+    """
+    value = getattr(sysinfo, probe)()
+    if platform.system() == "Windows":
+        assert value > 0  # a real Windows box has real RAM and a real clock
+    else:
+        assert value in (0, 0.0)
 
 
 def test_a_missing_gpu_is_reported_plainly_not_omitted() -> None:

@@ -25,7 +25,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 README = REPO_ROOT / "README.md"
 
 #: Numbers that were true once and are now wrong; each names itself on failure.
-SUPERSEDED_CLAIMS = ("689 tests", "613 tests", "611 tests", "97.8% coverage")
+SUPERSEDED_CLAIMS = ("689 tests", "613 tests", "611 tests", "762 tests",
+                     "97.8% coverage", "97.4% coverage")
 
 #: Components ch. 9.4.2 requires the report to contain.
 REQUIRED_SECTIONS = (
@@ -88,3 +89,25 @@ def test_the_report_carries_every_mandatory_component(section: str) -> None:
 def test_the_report_has_not_been_gutted() -> None:
     """A guard against a truncated or half-written report passing silently."""
     assert len(_text().splitlines()) > 300
+
+
+def test_the_claimed_suite_size_is_the_collected_suite_size(request) -> None:
+    """Derive the headline number instead of blocklisting stale ones.
+
+    The blocklist caught 689 and missed 762 - enumeration always loses to the
+    next stale value. This asserts the README's claimed collection size against
+    the size pytest itself just collected, so the claim can only ever be the
+    truth or a test failure telling someone to update one line.
+    """
+    import re
+
+    match = re.search(r"(\d+) tests collected", _text())
+    assert match, "README must state the collected-suite size as 'NNN tests collected'"
+    claimed = int(match.group(1))
+    collected = len(request.session.items)
+    if collected < claimed // 2:
+        pytest.skip("partial test run (-k/-x): full-suite size not observable")
+    assert collected == claimed, (
+        f"README claims {claimed} tests collected, this run collected {collected} - "
+        f"update the two headline lines in README.md"
+    )

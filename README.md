@@ -1,7 +1,7 @@
 # Police-Thief P2P — Distributed Cops-and-Robbers over a Peer-to-Peer Network
 
 **Final project, "Orchestration of AI Agents" — Dept. of Computer Science, University of Haifa, 2026.**
-**Team code:** `yanell11` · **Version:** 1.00 · **Tag:** `v1.0-submission` *(set at task 8.19.4)*
+**Team code:** `yanell11` · **Version:** 1.00 · **Tag:** `v1.0-submission` *(annotated, pushed in both submission repos)*
 
 Two autonomous agents — **cop** and **thief** — race on a discrete grid with **no central server
 and no referee**: P2P over FastMCP, SHA-256 commit-reveal integrity, decaying pheromone scent
@@ -507,8 +507,8 @@ All rows above are **perfect information**. Under belief, from the contract's fi
 
 | Engineering | Value |
 |---|---|
-| Test suite | 762 tests passing |
-| Coverage | 97.4% (gate: ≥ 85%, `pyproject.toml fail_under=85`) |
+| Test suite | 779 tests collected (1 environment-dependent skip; the suite itself verifies this number) |
+| Coverage | 97.3% (gate: ≥ 85%, `pyproject.toml fail_under=85`) |
 | Token budget utilization (measured, full series) | ~14% of the ~200k series budget |
 | Interop conformance vectors, byte-exact | 14 vendored fixtures, 14 dedicated tests |
 | Dialect divergence (kit vs book), byte-exact | 8 dedicated tests, both profiles pinned |
@@ -560,8 +560,9 @@ Rule #55 restricts self-grading to code quality, never the league outcome — th
 that, and only that, measured against this repository's own standing definition of done
 (`docs/TODO.md`, front matter):
 
-- **Tests & coverage:** 762 tests passing, 97.4% coverage against an 85%-floor gate that fails
-  the whole suite if crossed — this is a hard CI gate, not an aspiration.
+- **Tests & coverage:** 779 tests collected, 97.3% coverage against an 85%-floor gate that fails
+  the whole suite if crossed — this is a hard CI gate, not an aspiration. The suite count is
+  asserted by the suite itself (`test_readme_integrity.py`), so this line cannot silently rot.
 - **Lint:** `ruff check .` clean against the configured rule families (E,F,W,I,N,UP,B,C4,SIM),
   line length 100, target py310.
 - **150-line law:** every file under `src/`, `scripts/` and `tests/` is within the limit, and

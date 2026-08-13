@@ -171,6 +171,26 @@ def test_every_path_scoped_symbol_reference_resolves_to_that_file() -> None:
     assert defined_here, "no test files discovered - the walker is broken"
 
 
+def _forbidden_by_gitignore(name: str) -> bool:
+    """Whether ``.gitignore`` bans this file name from ever entering the tree.
+
+    Rule 39's evidence row cites ``credentials.json`` and ``token.json``
+    precisely BECAUSE they must never exist in a checkout - their absence IS
+    the compliance. On the machine that ran the OAuth setup they happen to
+    exist, so this test passed there and then failed on every fresh clone,
+    the grader's included. A cited path the ignore file bans is therefore
+    exempt: present or absent, it can never be drift.
+    """
+    from fnmatch import fnmatch
+
+    patterns = [
+        line.strip().rstrip("/")
+        for line in (REPO_ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.startswith("#")
+    ]
+    return any(fnmatch(name, pattern.lstrip("/")) for pattern in patterns)
+
+
 def test_every_cited_path_resolves_on_disk() -> None:
     """Catches a module renamed or moved without the matrix following it."""
     broken: list[str] = []
@@ -180,12 +200,23 @@ def test_every_cited_path_resolves_on_disk() -> None:
         if span in KNOWN_EXTERNAL:
             continue
         candidate = span.lstrip("./")
+        if _forbidden_by_gitignore(Path(candidate).name):
+            continue
         if (REPO_ROOT / candidate).exists():
             continue
         if any(path.name == Path(candidate).name for path in REPO_ROOT.rglob("*")):
             continue
         broken.append(span)
     assert not broken, f"COMPLIANCE.md cites paths that do not resolve: {broken}"
+
+
+def test_the_gitignore_exemption_is_no_wider_than_the_secret_surface() -> None:
+    """The exemption must cover the banned secrets and nothing that could drift."""
+    assert _forbidden_by_gitignore("credentials.json")
+    assert _forbidden_by_gitignore("token.json")
+    # An ordinary module is NOT exempt - a rename must still fail the test.
+    assert not _forbidden_by_gitignore("consensus.py")
+    assert not _forbidden_by_gitignore("COMPLIANCE.md")
 
 
 @pytest.mark.parametrize("stale", ["689 tests", "613 tests", "611 tests"])

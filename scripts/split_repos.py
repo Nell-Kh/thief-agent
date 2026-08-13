@@ -34,13 +34,13 @@ ROLES: dict[str, dict[str, str]] = {
         "role": "police",
         "title": "the POLICE (cop) agent",
         "partner": "thief-agent",
-        "serve": "uv run python -m police_thief serve --role police",
+        "serve": "uv run python -m police_thief peer --role police",
     },
     "thief-agent": {
         "role": "thief",
         "title": "the THIEF agent",
         "partner": "police-agent",
-        "serve": "uv run python -m police_thief serve --role thief",
+        "serve": "uv run python -m police_thief peer --role thief",
     },
 }
 
@@ -83,8 +83,31 @@ def role_banner(name: str, spec: dict[str, str], urls: dict[str, str]) -> str:
     )
 
 
+def verify_banner_command(serve: str) -> None:
+    """Refuse to ship a front-page command the CLI does not actually accept.
+
+    The first published banners invited the grader to run ``serve`` - a verb
+    the CLI never had - while the report body 50 lines below said ``peer``.
+    A generated front page must never drift from the real subparser set again.
+
+    Raises:
+        SystemExit: when the banner's verb is not a real CLI subcommand.
+    """
+    verb = serve.split("python -m police_thief ", 1)[-1].split()[0]
+    help_text = subprocess.run(
+        [sys.executable, "-m", "police_thief", "--help"],
+        cwd=ROOT, capture_output=True, text=True, check=False,
+        env={"PYTHONPATH": str(ROOT / "src"), "PATH": "/usr/bin:/bin:/usr/local/bin"},
+    ).stdout
+    if f"{verb}" not in help_text.split("{", 1)[-1].split("}", 1)[0].split(","):
+        raise SystemExit(f"banner command uses {verb!r}, which is not a CLI subcommand")
+
+
 def assemble(name: str, spec: dict[str, str], urls: dict[str, str]) -> Path:
     """Copy the tracked tree into ``build/<name>/`` and write its role README."""
+    if (ROOT / "README.md").read_text(encoding="utf-8").startswith(("# police-agent", "# thief-agent")):
+        raise SystemExit("this tree already carries a role banner - run the split "
+                         "from the development repo, never from inside a split repo")
     target = BUILD / name
     if target.exists():
         shutil.rmtree(target)
@@ -111,6 +134,7 @@ def main() -> int:
               "JSON (rule #49) - fix config/police/game.toml first.")
         return 1
     for name, spec in ROLES.items():
+        verify_banner_command(spec["serve"])
         target = assemble(name, spec, urls)
         files = sum(1 for _ in target.rglob("*") if _.is_file())
         print(f"built {target}  ({files} files)")

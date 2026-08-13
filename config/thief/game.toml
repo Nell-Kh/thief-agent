@@ -61,7 +61,7 @@ provider = "claude_api"
 every_n_steps = 3
 
 [llm]
-model = "claude-3-5-haiku-latest"
+model = "claude-haiku-4-5"
 step_deadline_seconds = 30
 
 [email]

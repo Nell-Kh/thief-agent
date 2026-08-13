@@ -28,8 +28,9 @@ HybridPoliceBrain    capture @34     capture @34        survival @34
 The opening hunt burns tempo chasing a belief argmax that is still
 diffuse, so the wall finishes later than it would have unopened - and the
 elite evader survives against both. There is therefore no opponent class
-for which the hybrid is the better league choice: prefer
-:class:`~police_thief.domain.brain.wall.WallPoliceBrain` in every match.
+for which the hybrid is the better league choice: the league default is
+:class:`~police_thief.domain.brain.seal.SealPoliceBrain` (round 3), which
+also captures the elite evader under belief - see ``seal.py``.
 The class is kept because the perfect-information frontier it maps is a
 real research result (notebook §9b) and its tests pin that behaviour.
 """

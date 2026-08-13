@@ -305,8 +305,9 @@ hybrid's speed advantage inverts:
 
 | cop | vs. blind thief | vs. enhanced thief | vs. elite evader |
 |---|---|---|---|
-| **Wall** (default) | capture @ step 28 | capture @ step 28 | survival @ 34 |
+| Wall | capture @ step 28 | capture @ step 28 | survival @ 34 |
 | Hybrid | capture @ step 34 | capture @ step 34 | survival @ 34 |
+| **Seal** (default) | capture @ step 29 | capture @ step 29 | capture @ step 30 |
 
 The opening hunt burns tempo chasing a belief argmax that is still diffuse, so the wall closes
 *later* than it would have unopened, and the elite evader escapes both. There is therefore no
@@ -316,6 +317,23 @@ perfect-information frontier they map is a real result — and because the gap b
 tables is itself the finding: **a strategy validated only under perfect information can invert
 under belief, so every strategic claim in this project is now stated with its information
 condition attached.**
+
+**Round 3: the seal cop.** The first full *internet* rehearsal (Mac↔Windows over two tunnels)
+made the wall's belief-condition row concrete: six sub-games, six thief survivals, on both sides.
+The blind diagnostic that followed acquitted the belief map — mean argmax error under one cell;
+the cop *knew* where the thief was — and convicted the greedy hunt: with the evader camping the
+doorway, every metric plateaued and the cop oscillated two cells from the door for seventeen
+straight steps. Worse, a one-cell belief error once made the trap rule brick the doorway's own
+approach corridor, stranding the cop in the empty half for the rest of the clock. `brain/seal.py`
+answers with commitment instead of information: once the wall stands and the believed thief is
+across it, march to the door, step through, and spend one stone locking it — the board becomes a
+closed 7×3 chamber in which the inherited region hunt (its dance breaker finally free to cut
+orbits, since there is no door left to preserve) converts. Two guards make the plan
+belief-error-proof: a trap is only taken when a *miss* still leaves every neighbouring cell
+reachable, and the region hunt may only place a stone that cuts the cop off from the believed
+thief when that same stone boxes the thief outright (the rule-47 path). Measured through the
+live pipeline, the seal row above is the result: **every archetype captured under belief**, the
+condition the wall was never actually measured in.
 
 **Determinism, redefined.** Along the way "deterministic" stopped meaning "the same object always
 decides the same way" (true but uninteresting) and came to mean the operationally relevant claim:
@@ -507,7 +525,7 @@ All rows above are **perfect information**. Under belief, from the contract's fi
 
 | Engineering | Value |
 |---|---|
-| Test suite | 782 tests collected (1 environment-dependent skip; the suite itself verifies this number) |
+| Test suite | 790 tests collected (1 environment-dependent skip; the suite itself verifies this number) |
 | Coverage | 97.3% (gate: ≥ 85%, `pyproject.toml fail_under=85`) |
 | Token budget utilization (measured, full series) | ~14% of the ~200k series budget |
 | Interop conformance vectors, byte-exact | 14 vendored fixtures, 14 dedicated tests |
@@ -567,7 +585,7 @@ Rule #55 restricts self-grading to code quality, never the league outcome — th
 that, and only that, measured against this repository's own standing definition of done
 (`docs/TODO.md`, front matter):
 
-- **Tests & coverage:** 782 tests collected, 97.3% coverage against an 85%-floor gate that fails
+- **Tests & coverage:** 790 tests collected, 97.3% coverage against an 85%-floor gate that fails
   the whole suite if crossed — this is a hard CI gate, not an aspiration. The suite count is
   asserted by the suite itself (`test_readme_integrity.py`), so this line cannot silently rot.
 - **Lint:** `ruff check .` clean against the configured rule families (E,F,W,I,N,UP,B,C4,SIM),

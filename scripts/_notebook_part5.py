@@ -30,7 +30,7 @@ CELLS = [
         "then the region hunt inside the thief's half. Exhaustive: **1900/1900 against "
         "every archetype including the strongest evader**, max 29 of 35 steps, max 8 of "
         "14 barriers.\n"
-        "5. **The shipped pair** is therefore `WallPoliceBrain` + `EvadeThiefBrain`: the "
+        "5. **The shipped pair** is therefore `SealPoliceBrain` + `EvadeThiefBrain`: the "
         "best attacker we could build, and the defender that beats everything except "
         "that attacker. A full belief-based networked self-play match confirms the "
         "transfer: agreed capture verdict on both peers.\n"

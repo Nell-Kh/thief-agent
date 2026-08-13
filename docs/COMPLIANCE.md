@@ -130,7 +130,7 @@ against a claim.
 - ✔ SDK architecture — all game-state mutation passes through `sdk/sdk.py::SimulationSdk`; GUI
   modules (`gui/*.py`) contain only rendering (verified during this pass: no domain logic there).
 - ✔ OOP, no duplication — real inheritance chains, not copy-paste: `BrainBase → BlindPoliceBrain →
-  EnhancedPoliceBrain`; `BlindPoliceBrain → RegionPoliceBrain → WallPoliceBrain → HybridPoliceBrain`;
+  EnhancedPoliceBrain`; `BlindPoliceBrain → RegionPoliceBrain → WallPoliceBrain → SealPoliceBrain / HybridPoliceBrain`;
   `BlindThiefBrain → EnhancedThiefBrain` / `EvadeThiefBrain`.
 - ◐ API Gatekeeper for every external call — true for Gmail (`shared/gatekeeper.py` behind every
   send); the Anthropic/LLM path uses a *different*, equally real protection chain instead

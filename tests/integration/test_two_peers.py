@@ -64,21 +64,26 @@ def test_a_full_match_reaches_an_agreed_verdict(peers) -> None:
     assert police.result["type"] in {"capture", "survival"}
 
 
-def test_the_wall_cop_outcome_against_the_elite_evader_under_belief(peers) -> None:
-    """Shipped mirror match pinned: wall cop vs elite evader ends in thief survival.
+def test_the_shipped_cop_converts_the_elite_evader_under_belief(peers) -> None:
+    """Shipped mirror match pinned: seal cop vs elite evader ends in capture.
 
-    History: the first internet rehearsal (wall cop) ended in thief survival six
-    times out of six. The seal cop was built specifically to beat the evader and
-    captured it; later tournament re-measurement under belief shows wall again
-    scores better overall (more captures across all archetypes), even though it
-    cannot capture the elite evader. This very match - the shipped wall cop
-    against the shipped evader, through the real blind pipeline - pins that
-    known outcome so any regression is caught immediately.
+    History, because this test has now asserted both answers. The first internet
+    rehearsal used the wall cop and ended in thief survival six times out of six.
+    The seal cop was written specifically to beat that evader - commitment rather
+    than better information: cross the door and spend a stone ON it - and does.
+    The wall cop then shipped anyway for a while, on a tournament that had never
+    measured seal at all; once it did, seal converted all three archetypes and
+    wall two, and the shipped brain changed to match.
+
+    This match is the mirror of what a league sub-game actually runs: the shipped
+    cop against the shipped thief through the real blind pipeline. It pins the
+    outcome so a regression in either brain is caught here rather than in a
+    counted series.
     """
     police, thief = peers
     play_out(police, thief)
-    assert police.result["type"] == "survival"
-    assert police.result["winner"] == "thief"
+    assert police.result["type"] == "capture"
+    assert police.result["winner"] == "police"
 
 
 def test_the_mutual_audit_passes_on_both_sides(peers) -> None:

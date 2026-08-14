@@ -42,17 +42,6 @@ from brain_tournament import (  # noqa: E402
 #: from a field that excluded the only candidate able to beat it.
 EXPECTED_BEST = ("seal", "evade")
 
-#: The cop the private TOML ships, which is deliberately NOT the winner above.
-#:
-#: `seal` converts all three thieves from the contract's start; `wall` converts
-#: two. But this matrix is ONE start, and seal's mechanism is tied to the
-#: wall's fixed column, so it does not generalize the way wall's guarantee
-#: does - and the evader it converts is our own, the thief seal was written to
-#: beat. `wall` ships until that trade has been seen against a second,
-#: independently-authored thief (`docs/TODO.md` 8.15). Change this line and the
-#: TOML together, or not at all.
-SHIPPED_COP = "wall"
-
 
 #: The shipped configuration directory, module-scoped so the matrix is too.
 SHIPPED_CONFIG = REPO_ROOT / "config"
@@ -81,22 +70,19 @@ def test_every_brain_in_the_tree_still_plays_a_legal_match(results) -> None:
     assert not undecided, f"pairings that never settled: {undecided}"
 
 
-def test_the_configured_cop_is_the_cop_this_suite_says_to_ship(results) -> None:
-    """The TOML and `SHIPPED_COP` must agree, and both must still be beaten.
+def test_the_configured_cop_is_the_cop_that_wins_most(results) -> None:
+    """No exception left to carry: the TOML ships the brain the matrix picks.
 
-    Two assertions, because either alone rots. The first catches a TOML edited
-    in a hurry; the second catches the opposite failure - `SHIPPED_COP` quietly
-    naming the winner, at which point it has stopped being a decision and is
-    just a comment asserting a conflict that has gone away.
+    This briefly asserted against a `SHIPPED_COP` constant instead, while the
+    repository knowingly shipped a cop the matrix did not pick. That exception
+    is spent - `seal` is now both the winner and the shipped brain - so the
+    constant is gone rather than left behind agreeing with the derivation,
+    which is the state in which nobody notices it has stopped meaning anything.
     """
     police_spec, _thief_spec = configured(SHIPPED_CONFIG)
-    assert police_spec == COPS[SHIPPED_COP], (
-        f"config/police/game.toml selects {police_spec!r} but this suite ships "
-        f"{SHIPPED_COP!r} - update the TOML, SHIPPED_COP, or this test"
-    )
-    assert best_cop(results) != SHIPPED_COP, (
-        f"{SHIPPED_COP!r} now wins the matrix outright - delete SHIPPED_COP and "
-        f"go back to asserting the configured cop is simply the best one"
+    assert police_spec == COPS[best_cop(results)], (
+        f"config/police/game.toml selects {police_spec!r} but {best_cop(results)!r} "
+        f"scores better under belief - update the TOML or this expectation"
     )
 
 

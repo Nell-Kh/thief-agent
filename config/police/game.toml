@@ -18,19 +18,32 @@ turn_timeout_seconds = 180
 
 [strategy]
 # The competition brain (see notebooks/analysis.ipynb and README 6).
-#  wall:WallPoliceBrain - the league choice. Under BELIEF from the contract's
-#    fixed start - the only condition a league match is played in - it captures
-#    EVERY archetype: Blind @34, Enhanced under belief, and outperforms seal.
-#    Re-derived by tests/integration/test_strategy_selection.py from the full
-#    belief-mode tournament matrix on every CI run.
-#  seal:SealPoliceBrain - previous league choice. Wall the board, cross the door,
-#    lock it behind you. Superseded by wall under belief conditions; kept as a
-#    documented alternative (see test_strategy_selection.py EXPECTED_BEST).
+#  seal:SealPoliceBrain - the league choice. Wall the board, cross the door,
+#    lock it behind you. Under BELIEF from the contract's fixed start - the only
+#    condition a league match is played in - it is the ONLY cop in the tree that
+#    converts all three thief archetypes: blind @29, enhanced @29, and the elite
+#    evader @30, which every other cop we own leaves at survival. Re-derived by
+#    tests/integration/test_strategy_selection.py from the full belief-mode
+#    tournament matrix on every CI run, and confirmed over the real wire by
+#    scripts/local_two_process_match.py --config-dir scripts/_scratch_config_seal
+#    (six sub-games, six captures @30, both audits clean).
+#    KNOW THIS BEFORE RENEGOTIATING THE CONTRACT: the door-sealing mechanism is
+#    tied to the wall's fixed column, so the advantage is a property of THIS
+#    contract's start (cop 0,0 / thief 3,3) and the cells around it, not of the
+#    brain alone. Start the cop on the far side of the board and the advantage
+#    is gone - wall degrades far more gracefully off-start. A negotiated change
+#    to thief_start/cop_start is therefore a reason to re-run the tournament,
+#    not a formality.
+#  wall:WallPoliceBrain - previous league choice, and the fallback if the start
+#    ever moves. Two of three archetypes and one step faster on them (@28), with
+#    near-total conversion against pursuit-style thieves from any start - but it
+#    cannot convert the elite evader from any start we have measured, which is
+#    the whole reason seal was written.
 #  hybrid:HybridPoliceBrain - do NOT use in league play. Its ~12-step advantage
 #    is a perfect-information artifact; under belief it captures at step 34,
 #    i.e. SLOWER than the wall, and loses to an elite evader just the same.
 #    Kept only as the documented research alternative (notebook 9b, hybrid.py).
-police_class = "police_thief.domain.brain.wall:WallPoliceBrain"
+police_class = "police_thief.domain.brain.seal:SealPoliceBrain"
 
 [interop]
 # Which of two lawful readings of the book we speak on the wire. Four places -

@@ -79,10 +79,13 @@ def role_banner(name: str, spec: dict[str, str], urls: dict[str, str]) -> str:
         f"Run this peer:\n\n"
         f"```\n{spec['serve']}\n```\n\n"
         f"Gates: `uv run ruff check src scripts tests` and `uv run pytest` (coverage ≥85%).\n\n"
-        f"The development story (branches, PRDs, PLAN, TODO - rule 9.4.1) is carried in\n"
-        f"`docs/`; the full commit-by-commit history lives in the development repository,\n"
-        f"<https://github.com/Nell-Kh/police-thief-p2p>, from whose git index this tree\n"
-        f"was assembled by `scripts/split_repos.py`.\n\n"
+        f"The submission is the annotated tag `v1.0-submission` on this branch's tip.\n"
+        f"The full commit-by-commit development history (both authors, original hashes -\n"
+        f"the `github_commit` stamps sealed in every game log resolve here) sits directly\n"
+        f"beneath this banner commit; the development story (branches, PRDs, PLAN, TODO -\n"
+        f"rule 9.4.1) is carried in `docs/`. This tree was assembled from the git index of\n"
+        f"the development repository, <https://github.com/Nell-Kh/police-thief-p2p>, by\n"
+        f"`scripts/split_repos.py`.\n\n"
         f"---\n\n"
     )
 

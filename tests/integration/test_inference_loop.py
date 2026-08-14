@@ -126,8 +126,12 @@ def test_m4_scent_updates_and_decays_every_turn(config: ConfigManager) -> None:
 
 def test_m4_the_configured_provider_chain_survives_without_a_key(
     config: ConfigManager,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """claude_api is configured, no API key exists - the game must not care."""
+    # Patch out the .env fallback so the test is not sensitive to a local .env file
+    # that might contain a real key; the test must verify the no-key code path only.
+    monkeypatch.setattr("police_thief.infra.llm.claude_api.anthropic_key", lambda: None)
     ledger = TokenLedger(budget=config.contract.network.token_budget_per_series)
     provider = build_provider(
         provider_name=config.private_value("trash_talk", "provider", "template"),

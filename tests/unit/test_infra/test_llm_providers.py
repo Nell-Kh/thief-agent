@@ -71,6 +71,7 @@ def test_ollama_empty_reply_is_an_error(monkeypatch: pytest.MonkeyPatch) -> None
 
 def test_claude_api_without_a_key_is_an_error(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setattr("police_thief.infra.llm.claude_api.anthropic_key", lambda: None)
     with pytest.raises(ProviderError, match="ANTHROPIC_API_KEY"):
         ClaudeApiProvider(model="", ledger=TokenLedger(budget=0)).generate(REQUEST)
 
@@ -183,8 +184,13 @@ def test_a_missing_key_fails_before_any_network_call() -> None:
 
     saved = os.environ.pop("ANTHROPIC_API_KEY", None)
     try:
+        import unittest.mock as mock
+
         provider = ClaudeApiProvider(model="m", ledger=TokenLedger(budget=100))
-        with pytest.raises(ProviderError, match="ANTHROPIC_API_KEY"):
+        with (
+            mock.patch("police_thief.infra.llm.claude_api.anthropic_key", return_value=None),
+            pytest.raises(ProviderError, match="ANTHROPIC_API_KEY"),
+        ):
             provider._get_client()  # noqa: SLF001 - the guard under test
     finally:
         if saved is not None:

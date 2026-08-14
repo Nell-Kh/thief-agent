@@ -25,7 +25,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 README = REPO_ROOT / "README.md"
 
 #: Numbers that were true once and are now wrong; each names itself on failure.
-SUPERSEDED_CLAIMS = ("689 tests", "613 tests", "611 tests", "762 tests",
+SUPERSEDED_CLAIMS = ("689 tests", "613 tests", "611 tests", "762 tests", "819 tests",
                      "97.8% coverage", "97.4% coverage")
 
 #: Components ch. 9.4.2 requires the report to contain.

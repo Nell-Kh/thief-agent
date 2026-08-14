@@ -122,12 +122,12 @@ def test_both_enhanced_brains_are_deterministic(contract) -> None:
 
 
 def test_the_configured_toml_selects_the_competition_brains(config_dir: Path) -> None:
-    """Police: the seal cop (round 3); thief: the open-field evader."""
+    """Police: the wall cop (tournament winner under belief); thief: the open-field evader."""
     from police_thief.domain.brain.evade import EvadeThiefBrain
-    from police_thief.domain.brain.seal import SealPoliceBrain
+    from police_thief.domain.brain.wall import WallPoliceBrain
     from police_thief.services.runtime import configured_brain
 
     police = configured_brain(ConfigManager.load("police", config_dir), "police")
     thief = configured_brain(ConfigManager.load("thief", config_dir), "thief")
-    assert isinstance(police, SealPoliceBrain)
+    assert isinstance(police, WallPoliceBrain)
     assert isinstance(thief, EvadeThiefBrain)

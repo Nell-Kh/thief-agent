@@ -64,19 +64,21 @@ def test_a_full_match_reaches_an_agreed_verdict(peers) -> None:
     assert police.result["type"] in {"capture", "survival"}
 
 
-def test_the_seal_cop_captures_the_elite_evader_under_belief(peers) -> None:
-    """The round-3 headline, pinned: the shipped mirror match ends in capture.
+def test_the_wall_cop_outcome_against_the_elite_evader_under_belief(peers) -> None:
+    """Shipped mirror match pinned: wall cop vs elite evader ends in thief survival.
 
-    The first internet rehearsal (wall cop) ended in thief survival six
-    times out of six; the seal cop exists because of that night. This very
-    match - the shipped cop against the shipped evader, through the real
-    blind pipeline - is the condition a league game is played in. If it
-    ever regresses to survival, the league default has lost its teeth.
+    History: the first internet rehearsal (wall cop) ended in thief survival six
+    times out of six. The seal cop was built specifically to beat the evader and
+    captured it; later tournament re-measurement under belief shows wall again
+    scores better overall (more captures across all archetypes), even though it
+    cannot capture the elite evader. This very match - the shipped wall cop
+    against the shipped evader, through the real blind pipeline - pins that
+    known outcome so any regression is caught immediately.
     """
     police, thief = peers
     play_out(police, thief)
-    assert police.result["type"] == "capture"
-    assert police.result["winner"] == "police"
+    assert police.result["type"] == "survival"
+    assert police.result["winner"] == "thief"
 
 
 def test_the_mutual_audit_passes_on_both_sides(peers) -> None:

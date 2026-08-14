@@ -53,7 +53,8 @@ class BootReport:
 def build_peer(config: ConfigManager) -> Orchestrator:
     """Wire one peer's orchestrator against its configured opponent URL."""
     opponent_url = str(config.private_value("network", "opponent_url", ""))
-    return Orchestrator(config, McpHttpTransport(opponent_url))
+    timeout = float(config.contract.network.response_timeout_sec)
+    return Orchestrator(config, McpHttpTransport(opponent_url, timeout=timeout))
 
 
 def start_server(orchestrator: Orchestrator, port: int, host: str = "0.0.0.0") -> threading.Thread:  # noqa: S104

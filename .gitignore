@@ -56,3 +56,6 @@ instruction/*.pdf
 .DS_Store
 .idea/
 .vscode/
+
+# results
+results/rehearsal*/

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import argparse
 
-from _series_lib import OPENING_WAIT_SECONDS
+from _series_lib import OPENING_WAIT_SECONDS, TURN_PATIENCE_SECONDS
 
 
 def parse_args() -> argparse.Namespace:
@@ -29,6 +29,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--artifacts", default="", help="output directory for artifacts")
     parser.add_argument("--config-dir", default="",
                         help="alternate config/ directory (a second identity, for rehearsals)")
+    parser.add_argument("--turn-patience", type=float, default=TURN_PATIENCE_SECONDS,
+                        help="extra seconds a turn or audit delivery keeps retrying a "
+                             "tunnel that has dropped; 0 restores the contract's bare "
+                             "three-tries budget")
     parser.add_argument("--wait", type=float, default=OPENING_WAIT_SECONDS,
                         help="seconds to keep re-offering terms to an opponent that has "
                              "not started yet (the two-terminal gap)")

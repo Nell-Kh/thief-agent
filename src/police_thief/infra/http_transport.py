@@ -6,42 +6,47 @@ point of the transport abstraction. Reliability lives one layer up: the
 PeerClient wraps every call in a deadline and a bounded retry, and the
 orchestrator converts exhaustion into a clean technical loss.
 
-One MCP session is held open for the transport's whole life. The first
-version opened a fresh session per call - six HTTP requests per game turn -
-and a live rehearsal over two free ngrok tunnels died mid-sub-game when both
-accounts hit ngrok's requests-per-minute cap. Reuse cuts a turn to a single
-request; a failed call drops the session so the next attempt reconnects.
+Two things here are shaped by the tunnel rather than by the protocol. The
+session is held open across calls (:mod:`infra.peer_session`) instead of dialled
+per message, and the calls cross into one long-lived event loop
+(:mod:`infra.async_loop`) instead of an ``asyncio.run`` each. Against localhost
+neither mattered; against a free tunnel, a connection per move was most of the
+cost and most of the failures.
 """
 
 from __future__ import annotations
 
-import asyncio
 import contextlib
-import threading
 from typing import Any
 
+from .async_loop import shared_loop
+from .net_errors import describe
+from .peer_session import PeerSession
 from .transport import TransportError
 
-#: Backstop for a single round-trip; the contract's own deadlines are shorter.
-CALL_TIMEOUT_SEC = 90.0
+#: Grace on top of the per-call budget before the *calling* thread gives up.
+#: The session's own timeout should always fire first and say why; this is the
+#: backstop that guarantees the turn loop is never wedged by the loop thread.
+THREAD_GRACE_SEC = 5.0
 
 
 class McpHttpTransport:
     """Delivers protocol messages to a remote peer's FastMCP server."""
 
-    def __init__(self, url: str) -> None:
+    def __init__(self, url: str, timeout: float = 30.0) -> None:
         """Bind the transport to the opponent's MCP endpoint.
 
         Args:
             url: e.g. ``http://127.0.0.1:8802/mcp`` in development, or a
                 public ``https://...ngrok...`` address in the league.
+            timeout: per-call budget, normally the contract's
+                ``response_timeout_sec`` - a reply that misses it is a failure.
         """
         if not url.startswith(("http://", "https://")):
             raise TransportError(f"opponent URL must be http(s), got {url!r}")
         self._url = url
-        self._loop: asyncio.AbstractEventLoop | None = None
-        self._thread: threading.Thread | None = None
-        self._client: Any = None
+        self._timeout = timeout
+        self._session = PeerSession(url, timeout=timeout)
 
     @property
     def url(self) -> str:
@@ -56,75 +61,27 @@ class McpHttpTransport:
                 PeerClient's retry-and-backoff can take over.
         """
         try:
-            return self._submit(self._call(tool, payload))
+            return shared_loop().run(
+                self._call(tool, payload), timeout=self._timeout + THREAD_GRACE_SEC
+            )
         except TransportError:
             raise
         except Exception as error:
-            raise TransportError(f"{tool}: transport failure ({error})") from error
-
-    def close(self) -> None:
-        """End the persistent session and stop its event loop thread."""
-        if self._loop is None:
-            return
-        with contextlib.suppress(Exception):  # a broken session cannot refuse to drop
-            self._submit(self._disconnect())
-        loop, self._loop = self._loop, None
-        loop.call_soon_threadsafe(loop.stop)
-        if self._thread is not None:
-            self._thread.join(timeout=5)
-            self._thread = None
-
-    def _submit(self, coro: Any) -> Any:
-        """Run ``coro`` on the transport's private event loop and wait for it."""
-        if self._loop is None:
-            self._loop = asyncio.new_event_loop()
-            self._thread = threading.Thread(
-                target=self._loop.run_forever, name="mcp-transport", daemon=True
-            )
-            self._thread.start()
-        future = asyncio.run_coroutine_threadsafe(coro, self._loop)
-        try:
-            return future.result(CALL_TIMEOUT_SEC)
-        except TimeoutError as error:
-            future.cancel()
-            # a stuck session is a dead session - drop it without waiting on it
-            asyncio.run_coroutine_threadsafe(self._disconnect(), self._loop)
-            raise TransportError(
-                f"no reply from {self._url} within {CALL_TIMEOUT_SEC:.0f}s"
-            ) from error
+            raise TransportError(f"{tool}: transport failure ({describe(error)})") from error
 
     async def _call(self, tool: str, payload: dict[str, Any]) -> dict[str, Any]:
-        """One round-trip on the open session, reconnecting if none exists."""
+        """One round-trip to the opponent's server on the shared session."""
         arg_name = "payload" if tool == "submit_audit" else "message"
-        try:
-            client = await self._connect()
-            result = await client.call_tool(tool, {arg_name: payload})
-        except TransportError:
-            await self._disconnect()
-            raise
-        except Exception as error:
-            await self._disconnect()
-            raise TransportError(f"{tool}: call to {self._url} failed ({error})") from error
-        return _extract_reply(result)
+        return _extract_reply(await self._session.call(tool, {arg_name: payload}))
 
-    async def _connect(self) -> Any:
-        """Return the open client session, establishing it on first use."""
-        if self._client is None:
-            try:
-                from fastmcp import Client
-            except ImportError as error:  # pragma: no cover - dependency is declared
-                raise TransportError("fastmcp is required for network play") from error
-            client = Client(self._url)
-            await client.__aenter__()
-            self._client = client
-        return self._client
+    def close(self) -> None:
+        """Drop the session to this peer; safe to call more than once.
 
-    async def _disconnect(self) -> None:
-        """Drop the session, if any, swallowing the errors of a dying peer."""
-        client, self._client = self._client, None
-        if client is not None:
-            with contextlib.suppress(Exception):  # closing a dying peer, best-effort
-                await client.__aexit__(None, None, None)
+        A series opens one session per sub-game, and the sub-game that has
+        just been audited has no further use for its own.
+        """
+        with contextlib.suppress(Exception):  # teardown must never fail a match
+            shared_loop().run(self._session.aclose(), timeout=THREAD_GRACE_SEC)
 
 
 def _extract_reply(result: Any) -> dict[str, Any]:

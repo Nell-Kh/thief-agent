@@ -40,6 +40,12 @@ POLL_INTERVAL = 0.2
 #: processes by hand, minutes apart, and neither should have to go first.
 OPENING_WAIT_SECONDS = 120.0
 
+#: How long a turn or audit delivery keeps retrying a peer that has gone quiet,
+#: on top of the contract's three tries. Sized against the opponent's own
+#: ``TURN_WAIT_TIMEOUT``: long enough to ride out a tunnel reconnecting, short
+#: enough that our message still lands before THEY declare us timed out.
+TURN_PATIENCE_SECONDS = 40.0
+
 
 def other_role(role: str) -> str:
     """The role the opponent plays when we play ``role``."""

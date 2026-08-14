@@ -62,34 +62,48 @@ def play_sub_game(n: int, role: str, args, ids: tuple[str, str], us: str,
     handler_box.current = handler
 
     matchrt = MatchRuntime(config, game_id=game_id, sub_game=n, github_commit=git_head())
-    client = PeerClient(McpHttpTransport(args.peer), contract.network, contract.rate_limiter)
-
-    print(f"\n=== sub-game {n}: we are {role} (opponent {expect_role}) ===")
+    transport = McpHttpTransport(args.peer, timeout=contract.network.response_timeout_sec)
+    client = PeerClient(transport, contract.network, contract.rate_limiter,
+                        turn_patience_sec=getattr(args, "turn_patience", 0.0))
     try:
-        negotiate_patiently(
-            client,
-            build_terms(config, peer_id=us, games_played=args.games_played,
-                        sub_game=n, step0_commit=matchrt.step0_commit),
-            wait_seconds=args.wait,
-            announce=lambda message: print(f"  {message}"),
-        )
-        wait_for(lambda: handler.opponent_terms, NEGOTIATE_WAIT_TIMEOUT,
-                 f"opponent's greeting for sub-game {n}")
-        their_group = handler.opponent_terms.get("group_id")
-        if their_group != args.opponent_group_id:
-            raise RuntimeError(f"sub-game {n}: opponent declared group_id {their_group!r}, "
-                               f"expected {args.opponent_group_id!r} - check --opponent-group-id")
-        print(f"  negotiated OK with {their_group} (role {handler.opponent_terms.get('role')})")
-
-        play_networked(role, matchrt, client, handler)
-        outcome_type = (matchrt.result or {}).get("type", "undecided")
-        print(f"  settled locally: {outcome_type} after {matchrt.view.step} steps")
-
-        client.submit_audit(matchrt.disclosure())
-        theirs = wait_for(lambda: handler.audit, NEGOTIATE_WAIT_TIMEOUT,
-                          f"opponent's audit disclosure for sub-game {n}")
+        return _play(n, role, args, ids, us, handler, matchrt, client, artifacts,
+                     links, recipient, contract, config)
     finally:
-        client.close()  # one held session per sub-game, never one per series
+        # One session per sub-game, closed with it: the audited sub-game has no
+        # further use for its tunnel, and a leaked one outlives the series.
+        transport.close()
+
+
+def _play(n: int, role: str, args, ids: tuple[str, str], us: str, handler: InboundHandler,
+          matchrt: MatchRuntime, client: PeerClient, artifacts: Path,
+          links: dict[str, Any], recipient: str, contract, config) -> dict[str, Any]:
+    """The sub-game itself, once the handler, runtime and client are wired."""
+    game_id, game_uid = ids
+    expect_role = other_role(role)
+    our_terms = terms_from_contract(contract)
+    print(f"\n=== sub-game {n}: we are {role} (opponent {expect_role}) ===")
+    negotiate_patiently(
+        client,
+        build_terms(config, peer_id=us, games_played=args.games_played,
+                    sub_game=n, step0_commit=matchrt.step0_commit),
+        wait_seconds=args.wait,
+        announce=lambda message: print(f"  {message}"),
+    )
+    wait_for(lambda: handler.opponent_terms, NEGOTIATE_WAIT_TIMEOUT,
+             f"opponent's greeting for sub-game {n}")
+    their_group = handler.opponent_terms.get("group_id")
+    if their_group != args.opponent_group_id:
+        raise RuntimeError(f"sub-game {n}: opponent declared group_id {their_group!r}, "
+                           f"expected {args.opponent_group_id!r} - check --opponent-group-id")
+    print(f"  negotiated OK with {their_group} (role {handler.opponent_terms.get('role')})")
+
+    play_networked(role, matchrt, client, handler)
+    outcome_type = (matchrt.result or {}).get("type", "undecided")
+    print(f"  settled locally: {outcome_type} after {matchrt.view.step} steps")
+
+    client.submit_audit(matchrt.disclosure())
+    theirs = wait_for(lambda: handler.audit, NEGOTIATE_WAIT_TIMEOUT,
+                      f"opponent's audit disclosure for sub-game {n}")
     report = audit_disclosure(theirs, contract, **matchrt.audit_evidence())
     print(f"  our audit of their disclosure: {report.verdict}"
           + ("" if report.passed else f" - {report.violations}"))

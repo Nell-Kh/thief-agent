@@ -62,6 +62,86 @@ never retried - no amount of waiting fixes a mismatch. If you can hear them but
 they cannot hear you, the peer names `[network].opponent_url` as the likely
 cause.
 
+## When the tunnel is the opponent
+
+A live series produced this, and it is worth reading closely:
+
+```
+sub-game 1 did not finish (PeerUnreachableError: receive_turn: opponent
+unreachable after 3 attempts (receive_turn: call to
+https://XXXX.ngrok-free.dev/mcp failed (Client failed to connect: )))
+```
+
+Two things are true in that line and neither is obvious.
+
+**The handshake had already succeeded.** `negotiate` and `receive_turn` travel
+to the same URL, so an opponent that greeted us and then "vanished" one message
+later did not move, misconfigure a port, or refuse anything. The URL is right.
+Something between the two calls stopped answering - which, with both peers
+behind free tunnels, is overwhelmingly the tunnel rather than the peer.
+
+**The reason is empty on purpose, not by accident.** fastmcp reports a failed
+connection as `f"Client failed to connect: {exception}"`, and the exceptions a
+dropped tunnel actually raises - `anyio.ClosedResourceError`,
+`anyio.EndOfStream`, `httpx.ReadError` - are all constructed with no arguments,
+so `str()` on them is the empty string. The one fact that would have named the
+fault, the exception's *type*, was the one fact the message dropped.
+
+Three changes followed, and they are the reason that line now reads differently.
+
+* **Every failure is rendered with its type and its whole cause chain**
+  (`infra/net_errors.py`). `(Client failed to connect: )` becomes
+  `(RuntimeError: Client failed to connect: <- ClosedResourceError)`.
+* **The session is held open** (`infra/peer_session.py`). One MCP session per
+  sub-game instead of one per message: a move used to cost a TCP handshake, a
+  TLS handshake and a five-request MCP session setup, and a six-sub-game series
+  opened thousands of short-lived connections through a tunnel that would
+  rather serve a few long ones. A failed call discards the session, so the
+  retry that follows always reconnects on a clean one.
+* **A turn delivery is patient; the handshake still is not.** The contract's
+  three-tries-five-seconds budget spans fifteen seconds, which is shorter than
+  a free tunnel takes to re-establish itself, so a reconnect used to cost a
+  whole sub-game. `--turn-patience` (default 40s) keeps re-offering the same
+  move, bounded well inside the opponent's own 60s turn wait so a peer that is
+  genuinely gone still becomes a technical loss quickly. The opening handshake
+  deliberately keeps the short budget - that wait belongs to the rendezvous
+  loop, which can tell "not started yet" from "refused".
+
+### Probe the tunnel before you blame the opponent
+
+`scripts/probe_peer.py` is the same dial, alone and repeatable. It only lists
+tools, so it is safe to point at a live opponent mid-series.
+
+```bash
+# is the endpoint there at all?
+.venv/Scripts/python.exe scripts/probe_peer.py https://THEIR-TUNNEL/mcp
+
+# does it STAY there? twenty dials, three seconds apart
+.venv/Scripts/python.exe scripts/probe_peer.py https://THEIR-TUNNEL/mcp --repeat 20 --gap 3
+
+# does a held-open session survive, the way a match now plays?
+.venv/Scripts/python.exe scripts/probe_peer.py https://THEIR-TUNNEL/mcp --repeat 10 --hold
+```
+
+Anything short of 20/20 is the failure that reads as "the opponent crashed"
+mid-series. Run it against **your own** tunnel too - the side that drops is not
+always the side that reports the error.
+
+### Free-tier facts worth knowing before a counted series
+
+* An ngrok free agent restarting keeps the same static domain, so a URL that
+  looks correct can front a tunnel that is briefly - or permanently - dead.
+  `ERR_NGROK_3200` means no agent; `ERR_NGROK_8012` means the agent is up but
+  nothing is listening on the port it forwards to.
+* `ngrok http 8801` must name the same port as `--port` / `[network].my_port`.
+* Do not pass `--host-header=localhost:8801`. It rewrites the redirect a
+  FastMCP server issues for `/mcp` so it points back at the *client's*
+  localhost, which fails with exactly the kind of empty connection error above.
+* Serve on `127.0.0.1` when the tunnel agent runs on the same machine (it dials
+  localhost itself). `0.0.0.0` is for a direct remote connection.
+* We send `ngrok-skip-browser-warning: true` on every call, so the free tier
+  answers our peer's tool call rather than its browser-warning page.
+
 ## Proving the tunnel before you name a start time
 
 The league kit ships a network checker; a bare "is it up?" probe cannot tell a

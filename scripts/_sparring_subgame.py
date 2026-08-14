@@ -88,7 +88,8 @@ def run_sub_game(n: int, scratch_dir: Path, peer_url: str, our_group_id: str, us
         handler_box.current = handler
 
     matchrt = MatchRuntime(config, game_id=game_id, sub_game=n, github_commit=git_head())
-    client = PeerClient(McpHttpTransport(peer_url), contract.network, contract.rate_limiter)
+    transport = McpHttpTransport(peer_url, timeout=contract.network.response_timeout_sec)
+    client = PeerClient(transport, contract.network, contract.rate_limiter)
 
     greeting = build_terms(config, peer_id=our_group_id, games_played=0, sub_game=n,
                            step0_commit=matchrt.step0_commit)
@@ -122,7 +123,10 @@ def run_sub_game(n: int, scratch_dir: Path, peer_url: str, our_group_id: str, us
         their_disclosure = wait_for(lambda: handler.audit, NEGOTIATE_WAIT_TIMEOUT,
                                    f"opponent's audit disclosure for sub-game {n}")
     finally:
-        client.close()  # one held session per sub-game, never one per series
+        # One session per sub-game, closed with it. The session lives on the
+        # transport, not the client - closing the wrong object here kills this
+        # process mid-sub-game and takes the opponent's audit delivery with it.
+        transport.close()
     their_report = audit_disclosure(their_disclosure, contract, **matchrt.audit_evidence())
     print(f"  our audit of their disclosure: {their_report.verdict}"
          + ("" if their_report.passed else f" - {their_report.violations}"))

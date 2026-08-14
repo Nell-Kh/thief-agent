@@ -33,10 +33,25 @@ from brain_tournament import (  # noqa: E402
     thief_score,
 )
 
-#: The verdict this suite pins. Both are documented in the private TOMLs, and
-#: both are re-derived below rather than trusted - if a new brain beats them,
-#: this constant is what a contributor must change, deliberately, in one place.
-EXPECTED_BEST = ("wall", "evade")
+#: The verdict this suite pins. Both are re-derived below rather than trusted -
+#: if a new brain beats them, this constant is what a contributor must change,
+#: deliberately, in one place.
+#:
+#: It read ("wall", "evade") while `seal` was absent from the harness's COPS
+#: dict, which made the gate self-consistent and wrong: it re-derived a winner
+#: from a field that excluded the only candidate able to beat it.
+EXPECTED_BEST = ("seal", "evade")
+
+#: The cop the private TOML ships, which is deliberately NOT the winner above.
+#:
+#: `seal` converts all three thieves from the contract's start; `wall` converts
+#: two. But this matrix is ONE start, and seal's mechanism is tied to the
+#: wall's fixed column, so it does not generalize the way wall's guarantee
+#: does - and the evader it converts is our own, the thief seal was written to
+#: beat. `wall` ships until that trade has been seen against a second,
+#: independently-authored thief (`docs/TODO.md` 8.15). Change this line and the
+#: TOML together, or not at all.
+SHIPPED_COP = "wall"
 
 
 #: The shipped configuration directory, module-scoped so the matrix is too.
@@ -66,11 +81,22 @@ def test_every_brain_in_the_tree_still_plays_a_legal_match(results) -> None:
     assert not undecided, f"pairings that never settled: {undecided}"
 
 
-def test_the_configured_cop_is_the_cop_that_wins_most(results) -> None:
+def test_the_configured_cop_is_the_cop_this_suite_says_to_ship(results) -> None:
+    """The TOML and `SHIPPED_COP` must agree, and both must still be beaten.
+
+    Two assertions, because either alone rots. The first catches a TOML edited
+    in a hurry; the second catches the opposite failure - `SHIPPED_COP` quietly
+    naming the winner, at which point it has stopped being a decision and is
+    just a comment asserting a conflict that has gone away.
+    """
     police_spec, _thief_spec = configured(SHIPPED_CONFIG)
-    assert police_spec == COPS[best_cop(results)], (
-        f"config/police/game.toml selects {police_spec!r} but {best_cop(results)!r} "
-        f"scores better under belief - update the TOML or this expectation"
+    assert police_spec == COPS[SHIPPED_COP], (
+        f"config/police/game.toml selects {police_spec!r} but this suite ships "
+        f"{SHIPPED_COP!r} - update the TOML, SHIPPED_COP, or this test"
+    )
+    assert best_cop(results) != SHIPPED_COP, (
+        f"{SHIPPED_COP!r} now wins the matrix outright - delete SHIPPED_COP and "
+        f"go back to asserting the configured cop is simply the best one"
     )
 
 
@@ -108,8 +134,17 @@ def test_the_wall_cop_captures_faster_than_the_hybrid_under_belief(results) -> N
     assert max(wall) <= min(hybrid)
 
 
-def test_the_evade_thief_survives_every_cop_in_the_tree(results) -> None:
-    """Including our own wall cop, which beats every other thief we have."""
+def test_the_evade_thief_survives_every_cop_except_the_seal(results) -> None:
+    """The ceiling README 13 records, and the one brain that breaks it.
+
+    Every pursuit-style cop we own ends at survival against the elite evader.
+    `seal` does not, which is the whole reason it was written: the wall cop
+    oscillated two cells from the door forever because every greedy metric had
+    plateaued, and the cure was commitment - cross the door and spend a stone
+    ON it - not better information. Pinned per cop rather than as a count, so
+    a brain that starts or stops converting is named by the failure.
+    """
     for cop in COPS:
         outcome, winner, _steps = results[(cop, "evade")]
-        assert (outcome, winner) == ("survival", "thief"), f"evade died to {cop}"
+        expected = ("capture", "police") if cop == "seal" else ("survival", "thief")
+        assert (outcome, winner) == expected, f"{cop} vs evade: got {outcome}/{winner}"

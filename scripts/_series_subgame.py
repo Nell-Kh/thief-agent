@@ -48,35 +48,81 @@ def load_config(role: str, args) -> ConfigManager:
         else ConfigManager.load(role)
 
 
+def build_handler(config: ConfigManager, role: str, n: int) -> InboundHandler:
+    """The inbound handler for sub-game ``n`` played as ``role``.
+
+    One construction site, because three callers need an identical handler at
+    three different moments: the sub-game itself, the next sub-game staged at
+    a boundary, and sub-game 1 bound before the socket opens.
+    """
+    return InboundHandler(
+        our_terms=terms_from_contract(config.contract),
+        our_extras=negotiate_extras(role, n),
+        expect_role=other_role(role),
+        reorder_window=4,
+    )
+
+
 def play_sub_game(n: int, role: str, args, ids: tuple[str, str], us: str,
                   handler_box: SwappableHandler, artifacts: Path,
                   links: dict[str, Any], recipient: str) -> dict[str, Any]:
     """Negotiate, play and mutually audit one sub-game; return its result row."""
     game_id, game_uid = ids
-    expect_role = other_role(role)
     config = load_config(role, args)
     contract = config.contract
-    our_terms = terms_from_contract(contract)
-    handler = InboundHandler(our_terms=our_terms, our_extras=negotiate_extras(role, n),
-                             expect_role=expect_role, reorder_window=4)
-    handler_box.current = handler
+    promoted = handler_box.current
+    if promoted is not None and promoted.declared_sub_game == n:
+        # Already bound for this sub-game: either pre-bound before the socket
+        # opened (sub-game 1) or promoted when the opponent greeted early at a
+        # boundary. Either way an opening greeting may already be inside it,
+        # and a fresh handler would drop it and then wait 180s for a greeting
+        # nobody is going to send again.
+        handler = promoted
+        if n > 1:
+            print(f"  reusing the handler promoted for sub-game {n} (early greeting captured)")
+    else:
+        handler = build_handler(config, role, n)
+        handler_box.current = handler
 
     matchrt = MatchRuntime(config, game_id=game_id, sub_game=n, github_commit=git_head())
     transport = McpHttpTransport(args.peer, timeout=contract.network.response_timeout_sec)
     client = PeerClient(transport, contract.network, contract.rate_limiter,
                         turn_patience_sec=getattr(args, "turn_patience", 0.0))
     try:
-        return _play(n, role, args, ids, us, handler, matchrt, client, artifacts,
-                     links, recipient, contract, config)
+        return _play(n, role, args, ids, us, handler, handler_box, matchrt, client,
+                     artifacts, links, recipient, contract, config)
     finally:
         # One session per sub-game, closed with it: the audited sub-game has no
         # further use for its tunnel, and a leaked one outlives the series.
         transport.close()
 
 
+def _stage_next_handler(n: int, role: str, args, config: ConfigManager,
+                        handler_box: SwappableHandler) -> None:
+    """Arm the next sub-game's handler so a boundary greeting is not refused.
+
+    The opponent may greet sub-game n+1 the instant it holds our audit for n,
+    while this side is still auditing theirs and writing artifacts. Sub-game n's
+    handler then refuses that greeting - correctly, on its own terms - and a
+    driver that treats a refusal as fatal (the kit's does, and it is right to:
+    no amount of waiting fixes a real mismatch) loses the series on a race.
+    :class:`SwappableHandler` promotes ``pending`` on exactly that mismatch, so
+    the greeting is answered as the sub-game it actually names.
+
+    Staged HERE, not at the top of the sub-game: while the match is live, a
+    mismatch is far likelier to be a genuine disagreement than a boundary race,
+    and promoting on it would abandon a sub-game in progress. After our own
+    settlement there is nothing left of n to protect.
+    """
+    if n >= args.rounds:
+        return  # no n+1 to stage; a stale pending would outlive the series
+    handler_box.pending = build_handler(config, other_role(role), n + 1)
+
+
 def _play(n: int, role: str, args, ids: tuple[str, str], us: str, handler: InboundHandler,
-          matchrt: MatchRuntime, client: PeerClient, artifacts: Path,
-          links: dict[str, Any], recipient: str, contract, config) -> dict[str, Any]:
+          handler_box: SwappableHandler, matchrt: MatchRuntime, client: PeerClient,
+          artifacts: Path, links: dict[str, Any], recipient: str,
+          contract, config) -> dict[str, Any]:
     """The sub-game itself, once the handler, runtime and client are wired."""
     game_id, game_uid = ids
     expect_role = other_role(role)
@@ -101,6 +147,7 @@ def _play(n: int, role: str, args, ids: tuple[str, str], us: str, handler: Inbou
     outcome_type = (matchrt.result or {}).get("type", "undecided")
     print(f"  settled locally: {outcome_type} after {matchrt.view.step} steps")
 
+    _stage_next_handler(n, role, args, config, handler_box)
     client.submit_audit(matchrt.disclosure())
     theirs = wait_for(lambda: handler.audit, NEGOTIATE_WAIT_TIMEOUT,
                       f"opponent's audit disclosure for sub-game {n}")

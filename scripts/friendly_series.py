@@ -53,7 +53,7 @@ from _series_lib import (  # noqa: E402
     other_role,
     start_server,
 )
-from _series_subgame import load_config, play_sub_game  # noqa: E402
+from _series_subgame import build_handler, load_config, play_sub_game  # noqa: E402
 
 sys.path.insert(0, str(ROOT / "src"))
 
@@ -116,6 +116,13 @@ def main() -> None:
     artifacts.mkdir(parents=True, exist_ok=True)
 
     handler_box = SwappableHandler()
+    # Bind sub-game 1 BEFORE the socket opens. An opponent already waiting on
+    # us greets on the first millisecond the port answers, and an unbound box
+    # answers "peer is booting" - retryable by design, but it spends one of the
+    # opponent's three tries and its backoff on a race we can simply not have.
+    # `play_sub_game` finds this handler already declared for sub-game 1 and
+    # keeps it, so the greeting it may already hold is not thrown away.
+    handler_box.current = build_handler(config, args.start_role, 1)
     start_server(handler_box, args.port, args.host)
     print(f"serving on {args.host}:{args.port}/mcp ; opponent at {args.peer}")
     time.sleep(1.0)  # let the server bind before the first greeting

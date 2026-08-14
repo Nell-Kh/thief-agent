@@ -43,12 +43,18 @@ from police_thief.shared.config import ConfigManager  # noqa: E402
 BRAIN = "police_thief.domain.brain"
 
 #: Every cop brain in the tree, with the label the report prints.
+#:
+#: `seal` belongs here for the same reason the others do: a harness that omits
+#: a candidate does not derive the choice, it ratifies it. It was missing while
+#: `config/police/game.toml` named it in prose as the previous league choice,
+#: so the one brain able to change the verdict was the one never measured.
 COPS = {
     "blind": f"{BRAIN}.blind:BlindPoliceBrain",
     "enhanced": f"{BRAIN}.enhanced:EnhancedPoliceBrain",
     "region": f"{BRAIN}.region:RegionPoliceBrain",
     "hybrid": f"{BRAIN}.hybrid:HybridPoliceBrain",
     "wall": f"{BRAIN}.wall:WallPoliceBrain",
+    "seal": f"{BRAIN}.seal:SealPoliceBrain",
 }
 
 #: Every thief brain in the tree.

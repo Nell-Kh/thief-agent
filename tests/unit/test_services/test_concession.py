@@ -47,13 +47,26 @@ def test_a_trapping_barrier_makes_the_thief_concede(config_thief: ConfigManager)
     assert reply.sender == "thief"
 
 
-def test_the_concession_is_sealed_into_the_logbook(config_thief: ConfigManager) -> None:
+def test_the_concession_is_sealed_as_a_real_stay_turn_at_the_next_step(
+    config_thief: ConfigManager,
+) -> None:
+    """One commit per step: the final advances, it does not re-seal the current one.
+
+    Re-announcing the current step with a fresh seal is two commitments for one
+    step - equivocation under commit-reveal, and a conformant peer refuses it
+    (sharNamr, 2026-08-15). The reference advances and plays STAY; so do we.
+    """
     runtime = MatchRuntime(config_thief, game_id="c2", sub_game=1, github_commit="x")
+    before = runtime.view.step
     reply = runtime.on_turn(message("police", barrier_placed=list(runtime.view.position)))
     record = runtime.book.records[-1]
-    assert record["payload"]["type"] == "concession"
+    assert reply.step == before + 1 == runtime.view.step
+    assert record["payload"]["type"] == "turn"  # a turn the audit can replay
+    assert record["payload"]["move"] == "move:STAY"
+    assert record["payload"]["step"] == reply.step
     assert record["commit"] == reply.commit
     assert verify(record["payload"], record["nonce"], record["commit"])
+    assert reply.claim_response == {"claim": list(runtime.view.position), "caught": True}
 
 
 def test_the_thief_concedes_exactly_once(config_thief: ConfigManager) -> None:

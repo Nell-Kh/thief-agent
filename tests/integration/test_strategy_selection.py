@@ -42,6 +42,10 @@ from brain_tournament import (  # noqa: E402
 #: from a field that excluded the only candidate able to beat it.
 EXPECTED_BEST = ("seal", "evade")
 
+#: The cops that convert EVERY thief archetype under belief. Three since the
+#: emitter fit; `seal` is the one shipped, for the reason its own test states.
+FULL_CONVERTERS = {"wall", "hybrid", "seal"}
+
 
 #: The shipped configuration directory, module-scoped so the matrix is too.
 SHIPPED_CONFIG = REPO_ROOT / "config"
@@ -70,19 +74,32 @@ def test_every_brain_in_the_tree_still_plays_a_legal_match(results) -> None:
     assert not undecided, f"pairings that never settled: {undecided}"
 
 
-def test_the_configured_cop_is_the_cop_that_wins_most(results) -> None:
-    """No exception left to carry: the TOML ships the brain the matrix picks.
+def test_the_configured_cop_converts_every_thief_archetype(results) -> None:
+    """The shipped cop must CONVERT every archetype - the property that pays.
 
-    This briefly asserted against a `SHIPPED_COP` constant instead, while the
-    repository knowingly shipped a cop the matrix did not pick. That exception
-    is spent - `seal` is now both the winner and the shipped brain - so the
-    constant is gone rather than left behind agreeing with the derivation,
-    which is the state in which nobody notices it has stopped meaning anything.
+    This asserted "the cop the matrix ranks first" while exactly one cop
+    converted the elite evader, so ranking and conversion were the same fact.
+    The emitter fit (``domain/emitter.py``) broke that tie: with the opponent
+    located by model inversion instead of by the peak of a clamped plateau,
+    `wall`, `hybrid` and `seal` all convert all three archetypes, and the
+    ranking falls through to its speed tie-break - which scores nothing. A
+    capture at 24 and a capture at 25 both pay 20/5.
+
+    So the gate now pins what the rulebook pays for. Among full converters we
+    ship `seal`, because its conversion is STRUCTURAL - cross the door, spend a
+    stone on it, hunt a closed chamber - where `wall`'s now rests on the
+    belief being precise. Speed is reported by the sibling tests, not ranked
+    here.
     """
     police_spec, _thief_spec = configured(SHIPPED_CONFIG)
-    assert police_spec == COPS[best_cop(results)], (
-        f"config/police/game.toml selects {police_spec!r} but {best_cop(results)!r} "
-        f"scores better under belief - update the TOML or this expectation"
+    shipped = next(name for name, spec in COPS.items() if spec == police_spec)
+    unconverted = [
+        thief for thief in THIEVES
+        if results[(shipped, thief)][0] != "capture"
+    ]
+    assert not unconverted, (
+        f"config/police/game.toml ships {shipped!r}, which fails to convert "
+        f"{unconverted} under belief - fix the brain or change the TOML"
     )
 
 
@@ -94,9 +111,23 @@ def test_the_configured_thief_is_the_thief_that_survives_most(results) -> None:
     )
 
 
-def test_the_pinned_verdict_is_the_measured_verdict(results) -> None:
-    """If a new brain wins, the change must be deliberate and named here."""
-    assert (best_cop(results), best_thief(results)) == EXPECTED_BEST
+def test_every_full_converter_is_named(results) -> None:
+    """If the set of cops that convert everything changes, say so deliberately.
+
+    Replaces a single-winner pin, which the emitter fit made meaningless: with
+    three cops converting all three archetypes, "who is first" is decided by a
+    speed tie-break worth zero points. What a contributor must notice is a cop
+    JOINING or LEAVING this set.
+    """
+    converters = {
+        cop for cop in COPS
+        if all(results[(cop, thief)][0] == "capture" for thief in THIEVES)
+    }
+    assert converters == FULL_CONVERTERS, (
+        f"the cops converting every archetype are {sorted(converters)}, not "
+        f"{sorted(FULL_CONVERTERS)} - update FULL_CONVERTERS deliberately"
+    )
+    assert best_thief(results) == EXPECTED_BEST[1]
 
 
 def test_the_wall_cop_captures_every_pursuit_style_thief(results) -> None:
@@ -120,17 +151,18 @@ def test_the_wall_cop_captures_faster_than_the_hybrid_under_belief(results) -> N
     assert max(wall) <= min(hybrid)
 
 
-def test_the_evade_thief_survives_every_cop_except_the_seal(results) -> None:
-    """The ceiling README 13 records, and the one brain that breaks it.
+def test_the_barrier_cops_convert_the_elite_evader(results) -> None:
+    """Who beats the evader, and what changed the answer.
 
-    Every pursuit-style cop we own ends at survival against the elite evader.
-    `seal` does not, which is the whole reason it was written: the wall cop
-    oscillated two cells from the door forever because every greedy metric had
-    plateaued, and the cure was commitment - cross the door and spend a stone
-    ON it - not better information. Pinned per cop rather than as a count, so
-    a brain that starts or stops converting is named by the failure.
+    `seal` was written because `wall` oscillated two cells from the door
+    forever - and we read that as needing commitment rather than information.
+    Both were true. The emitter fit supplied the information (the transmitted
+    trail clamps into a plateau, so the peak located nothing), and with it the
+    barrier cops convert the evader too. The pure-pursuit cop still cannot:
+    equal speed with no stones is the parity dance, exactly as README 5 says.
     """
-    for cop in COPS:
+    for cop in FULL_CONVERTERS:
         outcome, winner, _steps = results[(cop, "evade")]
-        expected = ("capture", "police") if cop == "seal" else ("survival", "thief")
-        assert (outcome, winner) == expected, f"{cop} vs evade: got {outcome}/{winner}"
+        assert (outcome, winner) == ("capture", "police"), f"{cop} vs evade: {outcome}"
+    outcome, winner, _steps = results[("blind", "evade")]
+    assert (outcome, winner) == ("survival", "thief"), "pure pursuit should not convert"

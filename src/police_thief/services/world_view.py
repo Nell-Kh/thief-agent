@@ -39,6 +39,9 @@ class WorldView:
     #: of believing it - see :func:`domain.audit.verify_concession`.
     final_claim: list[int] | None = None
     final_claim_is_answer: bool = False
+    #: The opponent's scent field as of its previous turn - the baseline the
+    #: emitter fit differences against (domain/emitter.py).
+    last_scent: dict[Cell, float] | None = None
     opponent_step: int = 0
     opponent_barriers: int = 0
     opponent_commits: dict[int, str] = field(default_factory=dict)

@@ -303,10 +303,15 @@ rather than promoted to default.
 league match is ever played in — inferred positions, from the contract's fixed start — the
 hybrid's speed advantage inverts:
 
-| cop | vs. blind thief | vs. enhanced thief | vs. elite evader |
+| cop (belief, fixed start) | vs. blind thief | vs. enhanced thief | vs. elite evader |
 |---|---|---|---|
-| **Wall** (default) | capture @ step 28 | capture @ step 28 | survival @ 34 |
-| Hybrid | capture @ step 34 | capture @ step 34 | survival @ 34 |
+| Wall | capture @ 24 | capture @ 24 | capture @ 24 |
+| Hybrid | capture @ 25 | capture @ 25 | capture @ 25 |
+| **Seal** (default, §6b) | capture @ 25 | capture @ 25 | capture @ 25 |
+
+*Those are the numbers **after** the emitter fit below. Before it the same table read
+wall 28/28/**survival**, hybrid 34/34/**survival**, seal 29/29/**capture @30** — one cop
+converting the elite evader, which is why `seal` was written and why it is still shipped.*
 
 The opening hunt burns tempo chasing a belief argmax that is still diffuse, so the wall closes
 *later* than it would have unopened, and the elite evader escapes both. There is therefore no
@@ -316,6 +321,30 @@ perfect-information frontier they map is a real result — and because the gap b
 tables is itself the finding: **a strategy validated only under perfect information can invert
 under belief, so every strategic claim in this project is now stated with its information
 condition attached.**
+
+### 6b. The emitter fit — locating a peer that publishes a plateau
+
+A live opponent (`sharNamr`, 2026-08-15) reported that our cop was blind to them, and the cause
+was ours as much as theirs. The transmitted `smell_grid` is the **whole accumulated trail**, and
+every conformant model **clamps** it at `emit_intensity`; after a few moves the maximum is
+therefore a *plateau* — measured at **13 of 49 cells** on our own field — so `belief.argmax()`
+answered with whatever the tie-break happened to order first. Both roles were steering by a
+phantom, and no amount of strategy work would have fixed it.
+
+The cure is to stop reading the peak and invert the model instead: for every candidate cell,
+predict the field that cell's emission would produce from last turn's field, and keep the best
+fit (`domain/emitter.py`). Against our registered `multiplicative_book_v1` it is exact — **8 of 8**
+cells on a moving path, zero residual — and against a peer on another reading it degrades to
+"the nearest cell that explains the field" instead of failing.
+
+The measured consequence is the table above: **every barrier cop now converts every archetype**,
+captures land 4–5 steps sooner, and the pure-pursuit cop still cannot convert (equal speed with
+no stones is the parity dance of §5). It also changed what the strategy gate can honestly assert:
+with three cops converting everything, "who ranks first" is decided by a speed tie-break worth
+zero points, so `tests/integration/test_strategy_selection.py` now pins **conversion** — the
+property the rulebook pays for — and names the converting set, rather than crowning a winner.
+`seal` remains the shipped cop because its conversion is structural (cross the door, spend a
+stone on it, hunt a closed chamber) where `wall`'s now rests on the belief being precise.
 
 **Determinism, redefined.** Along the way "deterministic" stopped meaning "the same object always
 decides the same way" (true but uninteresting) and came to mean the operationally relevant claim:
@@ -487,11 +516,11 @@ every strategy generation against every archetype, across all start positions.
 
 All rows above are **perfect information**. Under belief, from the contract's fixed start:
 
-| Condition (belief, fixed start) | Wall cop | Hybrid cop |
-|---|---|---|
-| vs. blind thief | capture @ 28 | capture @ 34 |
-| vs. enhanced thief | capture @ 28 | capture @ 34 |
-| vs. elite evader | survival @ 34 | survival @ 34 |
+| Condition (belief, fixed start) | Wall cop | Hybrid cop | Seal cop (shipped) |
+|---|---|---|---|
+| vs. blind thief | capture @ 24 | capture @ 25 | capture @ 25 |
+| vs. enhanced thief | capture @ 24 | capture @ 25 | capture @ 25 |
+| vs. elite evader | capture @ 24 | capture @ 25 | capture @ 25 |
 
 The belief table is not a notebook figure copied by hand — it is re-derived on every test run.
 `scripts/brain_tournament.py` plays every cop brain against every thief brain as full
@@ -519,7 +548,7 @@ survival declaration lands one step later on its own clock.
 
 | Engineering | Value |
 |---|---|
-| Test suite | 851 tests collected (1 environment-dependent skip; the suite itself verifies this number) |
+| Test suite | 855 tests collected (1 environment-dependent skip; the suite itself verifies this number) |
 | Coverage | 97.51% (gate: ≥ 85%, `pyproject.toml fail_under=85`) |
 | Token budget utilization (measured, full series) | ~14% of the ~200k series budget |
 | Interop conformance vectors, byte-exact | 14 vendored fixtures, 14 dedicated tests |
@@ -579,7 +608,7 @@ Rule #55 restricts self-grading to code quality, never the league outcome — th
 that, and only that, measured against this repository's own standing definition of done
 (`docs/TODO.md`, front matter):
 
-- **Tests & coverage:** 851 tests collected, 97.51% coverage against an 85%-floor gate that fails
+- **Tests & coverage:** 855 tests collected, 97.51% coverage against an 85%-floor gate that fails
   the whole suite if crossed — this is a hard CI gate, not an aspiration. The suite count is
   asserted by the suite itself (`test_readme_integrity.py`), so this line cannot silently rot.
 - **Lint:** `ruff check .` clean against the configured rule families (E,F,W,I,N,UP,B,C4,SIM),

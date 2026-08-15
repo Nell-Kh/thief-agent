@@ -9,6 +9,7 @@ function returns, it is our turn.
 
 from __future__ import annotations
 
+from ..domain.emitter import locate_emitter
 from ..domain.turnmsg import TurnMessage, decode_scent
 from ..shared.schema import GameContract
 from .enforcement import protocol_violation
@@ -17,6 +18,11 @@ from .world_view import WorldView
 #: Belief multiplier for a scent-verified capture claim - a near-pin that
 #: still leaves mass elsewhere, so a clever forged claim cannot blind us.
 CLAIM_PIN_FACTOR = 25.0
+
+#: Belief multiplier for the fitted emitter cell. Strong, because the fit is
+#: exact against a conformant model - but not absolute, so a peer on another
+#: reading of the book pulls our belief rather than breaking it.
+EMITTER_PIN_FACTOR = 20.0
 
 
 def receive_turn(view: WorldView, message: TurnMessage, contract: GameContract) -> None:
@@ -39,6 +45,10 @@ def receive_turn(view: WorldView, message: TurnMessage, contract: GameContract) 
     scent = decode_scent(message.smell_grid)
     view.belief.diffuse()
     view.belief.observe_scent(scent)
+    emitter = locate_emitter(view.last_scent, scent, contract.pheromones, view.board.size)
+    if emitter is not None:
+        view.belief.observe_region([emitter], EMITTER_PIN_FACTOR)
+    view.last_scent = scent
     appraisal = view.trust.appraise(message.hint, scent)
     if appraisal.region:
         view.belief.observe_region(appraisal.region, appraisal.factor)

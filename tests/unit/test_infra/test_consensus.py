@@ -92,7 +92,8 @@ def test_the_scope_keeps_only_pair_observable_fields() -> None:
     scope = mutual_agreement_scope("gid", rows, series_aggregate(rows, tie_score=2))
     assert set(scope) == {"game_id", "aggregate", "sub_games"}
     trimmed = scope["sub_games"][0]
-    assert set(trimmed) == {"sub_game_number", "roles", "result", "winner_group", "tie", "score"}
+    assert set(trimmed) == {"sub_game_number", "roles", "result", "winner_group", "score"}
+    assert "tie" not in trimmed  # in the document row, never in the hash (kit ad65576)
     assert "started_at" not in trimmed and "tokens" not in trimmed  # per-side facts cut
 
 

@@ -29,7 +29,13 @@ from ...shared.interop_profile import DEFAULT, InteropProfile
 SIGNATURE_KEY = "חתימת_קונסנזוס_משותפת"  # noqa: E501
 
 #: The row fields inside the consensus preimage - pair-observable, never per-side.
-SCOPE_ROW_KEYS = ("sub_game_number", "roles", "result", "winner_group", "tie", "score")
+#: FIVE keys, pinned to the reference's own artifact (kit commit ad65576, 2026-08-13):
+#: the reference writes ``tie`` into the document row but leaves it OUT of the hash
+#: preimage, and every hash ever settled live reproduces only under this row. A
+#: 2026-08-04..13 kit revision signed a sixth key ``tie``; nothing ever played did.
+#: The tie is still derivable (``winner_group is None``) and its COUNT sits in the
+#: signed aggregate, so the trim loses nothing.
+SCOPE_ROW_KEYS = ("sub_game_number", "roles", "result", "winner_group", "score")
 
 
 #: ``json.dumps`` default spacing - the kit's settlement form.

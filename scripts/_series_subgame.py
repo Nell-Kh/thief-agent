@@ -159,6 +159,9 @@ def _play(n: int, role: str, args, ids: tuple[str, str], us: str, handler: Inbou
     play_networked(role, matchrt, client, handler)
     outcome_type = (matchrt.result or {}).get("type", "undecided")
     print(f"  settled locally: {outcome_type} after {matchrt.view.step} steps")
+    how = (matchrt.result or {}).get("how")
+    if how:
+        print(f"    reason: {how}")  # the rule that decided it - never fly blind again
 
     _stage_next_handler(n, role, args, config, handler_box)
     client.submit_audit(matchrt.disclosure())

@@ -82,7 +82,23 @@ def validate_terms(
     _check_models(theirs, our_extras)
     _check_dialect(theirs, our_extras)
     _check_pairing(theirs, our_extras, expect_role)
-    return theirs
+    return _lift_identity(theirs)
+
+
+def _lift_identity(theirs: dict[str, Any]) -> dict[str, Any]:
+    """Accept the group id at the top level OR under ``identity`` (the kit's rule).
+
+    The kit's own peer reads ``raw.get("group_id") or raw["identity"]["group_id"]``
+    and sends BOTH, so our sparring never met a greeting with only the nested
+    form - the first real opponent (moamteam, 2026-08-15) sent only that, and
+    we refused a valid partner as "group_id None" at kickoff. Silence on the
+    top-level key is not a disagreement; the nested field is the same fact.
+    """
+    if theirs.get("group_id"):
+        return theirs
+    identity = theirs.get("identity")
+    nested = identity.get("group_id") if isinstance(identity, dict) else None
+    return {**theirs, "group_id": nested} if nested else theirs
 
 
 def _check_dialect(theirs: dict[str, Any], ours: dict[str, Any]) -> None:

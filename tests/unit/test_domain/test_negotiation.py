@@ -122,3 +122,23 @@ def test_uncomparable_pairing_values_are_silence(
 def test_non_object_greetings_are_refused(police: ConfigManager) -> None:
     with pytest.raises(TermsRejectedError, match="terms object"):
         check(["not", "a", "greeting"], police)
+
+
+def test_a_group_id_nested_under_identity_is_accepted(police) -> None:
+    """The kit's rule: top-level ``group_id`` OR ``identity.group_id``.
+
+    The first real opponent sent only the nested form; refusing it as
+    "group_id None" at kickoff is a false refusal of a valid partner.
+    """
+    from police_thief.domain.negotiation import build_terms, validate_terms
+    from police_thief.shared.interop import negotiate_extras, terms_from_contract
+
+    greeting = build_terms(police, peer_id="moamteam", games_played=0, sub_game=1,
+                           step0_commit="c" * 64)
+    del greeting["group_id"]
+    greeting["identity"] = {"group_id": "moamteam", "group_name": "MOAMTEAM"}
+    accepted = validate_terms(
+        greeting, our_terms=terms_from_contract(police.contract),
+        our_extras=negotiate_extras("thief", 1), expect_role="police",
+    )
+    assert accepted["group_id"] == "moamteam"

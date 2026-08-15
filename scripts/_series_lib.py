@@ -154,13 +154,37 @@ def negotiate_patiently(client, greeting: dict[str, Any],
     waited = False
     while True:
         try:
-            return client.negotiate(greeting)
+            reply = client.negotiate(greeting)
         except PeerUnreachableError:
             if clock() >= deadline:
                 raise
             if not waited:
                 announce("opponent not up yet - waiting for it to start...")
                 waited = True
+            continue
+        refusal = spoken_refusal(reply)
+        if refusal:
+            raise HandshakeRejectedError(f"opponent refused our greeting: {refusal}")
+        return reply
+
+
+def spoken_refusal(reply: Any) -> str:
+    """The opponent's stated refusal inside a negotiate reply, or ``""``.
+
+    On the kit wire ``negotiate`` is a mailbox - the reply is ``{"ok": true}``
+    (queued) and any refusal is decided later, in silence. But a peer MAY speak
+    its verdict in the reply (``accepted: false``, ``ok: false``, ``refused``,
+    ``error``), and a client that ignores that plays a whole sub-game against
+    nothing (sharNamr, 2026-08-15). A spoken no is a refusal, never a success.
+    """
+    if not isinstance(reply, dict):
+        return ""
+    if reply.get("accepted") is False or reply.get("ok") is False:
+        return str(reply.get("reason") or reply.get("error") or reply.get("refused") or "no reason given")
+    for key in ("refused", "error"):
+        if reply.get(key):
+            return str(reply[key])
+    return ""
 
 
 def wait_for(predicate: Callable[[], Any], timeout: float, what: str) -> Any:

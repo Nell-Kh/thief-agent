@@ -27,3 +27,21 @@ def test_a_role_split_opponent_is_dialled_at_its_thief_when_we_are_police() -> N
 def test_an_old_args_object_without_the_flag_still_works() -> None:
     args = SimpleNamespace(peer="https://one/mcp")
     assert peer_url_for(args, "police") == "https://one/mcp"
+
+
+def test_a_mailbox_reply_is_not_a_refusal() -> None:
+    from _series_lib import spoken_refusal
+
+    assert spoken_refusal({"ok": True}) == ""
+    assert spoken_refusal({"accepted": True, "terms": {}}) == ""
+    assert spoken_refusal(None) == ""
+
+
+def test_a_spoken_no_is_a_refusal_never_a_success() -> None:
+    """sharNamr, 2026-08-15: a peer that says no in the reply must be believed."""
+    from _series_lib import spoken_refusal
+
+    assert "identity" in spoken_refusal({"accepted": False, "reason": "identity is required"})
+    assert spoken_refusal({"ok": False}) == "no reason given"
+    assert spoken_refusal({"refused": "SPAR-N08"}) == "SPAR-N08"
+    assert spoken_refusal({"error": "terms mismatch"}) == "terms mismatch"

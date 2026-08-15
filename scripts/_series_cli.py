@@ -15,7 +15,11 @@ def parse_args() -> argparse.Namespace:
     """Command-line surface: everything opponent-specific is an argument."""
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--peer", required=True, help="opponent's MCP URL")
+    parser.add_argument("--peer", required=True,
+                        help="opponent's MCP URL (their COP endpoint, when they are role-split)")
+    parser.add_argument("--peer-thief", default="",
+                        help="a role-split opponent's THIEF endpoint; sub-games where they "
+                             "play thief dial here instead of --peer (default: same address)")
     parser.add_argument("--opponent-group-id", required=True,
                         help="the group_id the opponent will declare; a mismatch aborts")
     parser.add_argument("--start-role", required=True, choices=["police", "thief"],

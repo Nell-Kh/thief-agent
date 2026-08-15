@@ -48,6 +48,18 @@ def load_config(role: str, args) -> ConfigManager:
         else ConfigManager.load(role)
 
 
+def peer_url_for(args, our_role: str) -> str:
+    """The opponent endpoint to dial this sub-game.
+
+    A role-split opponent (one process and one tunnel per role - sharNamr,
+    2026-08-15) is dialled at its THIEF address exactly when WE are police;
+    a single-endpoint opponent leaves ``--peer-thief`` empty and both roles
+    resolve to ``--peer``.
+    """
+    thief_url = getattr(args, "peer_thief", "") or ""
+    return thief_url if (thief_url and our_role == "police") else args.peer
+
+
 def build_handler(config: ConfigManager, role: str, n: int) -> InboundHandler:
     """The inbound handler for sub-game ``n`` played as ``role``.
 
@@ -85,7 +97,8 @@ def play_sub_game(n: int, role: str, args, ids: tuple[str, str], us: str,
         handler_box.current = handler
 
     matchrt = MatchRuntime(config, game_id=game_id, sub_game=n, github_commit=git_head())
-    transport = McpHttpTransport(args.peer, timeout=contract.network.response_timeout_sec)
+    transport = McpHttpTransport(peer_url_for(args, role),
+                                 timeout=contract.network.response_timeout_sec)
     client = PeerClient(transport, contract.network, contract.rate_limiter,
                         turn_patience_sec=getattr(args, "turn_patience", 0.0))
     try:

@@ -141,6 +141,7 @@ def _play(n: int, role: str, args, ids: tuple[str, str], us: str, handler: Inbou
     expect_role = other_role(role)
     our_terms = terms_from_contract(contract)
     print(f"\n=== sub-game {n}: we are {role} (opponent {expect_role}) ===")
+    print(f"  dialling their {expect_role} at {peer_url_for(args, role)}")
     negotiate_patiently(
         client,
         build_terms(config, peer_id=us, games_played=args.games_played,

@@ -53,7 +53,12 @@ from _series_lib import (  # noqa: E402
     other_role,
     start_server,
 )
-from _series_subgame import build_handler, load_config, play_sub_game  # noqa: E402
+from _series_subgame import (  # noqa: E402
+    build_handler,
+    load_config,
+    peer_url_for,
+    play_sub_game,
+)
 
 sys.path.insert(0, str(ROOT / "src"))
 
@@ -124,7 +129,12 @@ def main() -> None:
     # keeps it, so the greeting it may already hold is not thrown away.
     handler_box.current = build_handler(config, args.start_role, 1)
     start_server(handler_box, args.port, args.host)
-    print(f"serving on {args.host}:{args.port}/mcp ; opponent at {args.peer}")
+    print(f"serving on {args.host}:{args.port}/mcp")
+    print(f"  we are {args.start_role} in sub-game 1, so we dial "
+          f"{peer_url_for(args, args.start_role)}")
+    if getattr(args, "peer_thief", ""):
+        print(f"  role-split opponent: as police we dial {args.peer_thief} , "
+              f"as thief {args.peer}")
     time.sleep(1.0)  # let the server bind before the first greeting
 
     links = links_block(ids[0], github={

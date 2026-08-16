@@ -95,14 +95,30 @@ class SwappableHandler:
         refusal as fatal (correctly: no amount of waiting fixes a mismatch).
         When the next sub-game's handler is already staged in ``pending``, the
         mismatch IS the signal to promote it and answer as the new sub-game.
+
+        With nothing staged, a greeting for a LATER sub-game is not a refusal
+        at all - it is a peer that is early, and the honest answer is "not
+        yet", which is retryable. najamjad (2026-08-16) run one process per
+        role against our single door, so their cop opened sub-game 2 while
+        their thief was still opening sub-game 1: a permanent refusal there
+        kills a series over a race that resolves itself in seconds. A greeting
+        for an EARLIER sub-game still refuses - that one really is unplayable,
+        because the sub-game it names is already sealed and reported.
         """
         try:
             return self._active().negotiate(message)
         except HandshakeRejectedError:
-            if self.pending is None:
-                raise
-            self.current, self.pending = self.pending, None
-            return self.current.negotiate(message)
+            if self.pending is not None:
+                self.current, self.pending = self.pending, None
+                return self.current.negotiate(message)
+            wanted = message.get("sub_game_number")
+            here = self._active().declared_sub_game
+            if isinstance(wanted, int) and wanted > here:
+                raise RuntimeError(
+                    f"sub-game {wanted} has not started on this peer yet (we are "
+                    f"playing {here}) - retry when it does"
+                ) from None
+            raise
 
     def receive_turn(self, message: dict[str, Any]) -> dict[str, Any]:
         """Forward a turn to the active handler."""

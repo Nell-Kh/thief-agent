@@ -45,3 +45,72 @@ def test_a_spoken_no_is_a_refusal_never_a_success() -> None:
     assert spoken_refusal({"ok": False}) == "no reason given"
     assert spoken_refusal({"refused": "SPAR-N08"}) == "SPAR-N08"
     assert spoken_refusal({"error": "terms mismatch"}) == "terms mismatch"
+
+
+def _box(current_number: int, pending: object | None = None):
+    """A SwappableHandler whose active handler refuses everything by sub-game."""
+    from _series_lib import SwappableHandler
+
+    from police_thief.services.inbound import HandshakeRejectedError
+
+    class Refusing:
+        """A handler that refuses every greeting naming another sub-game."""
+
+        declared_sub_game = current_number
+
+        def negotiate(self, message):
+            """Stand in for a handler that refuses every foreign greeting."""
+            raise HandshakeRejectedError(
+                f"sub-game mismatch: we are playing {current_number}, "
+                f"they declare {message.get('sub_game_number')}"
+            )
+
+    box = SwappableHandler()
+    box.current = Refusing()
+    box.pending = pending
+    return box
+
+
+def test_an_early_greeting_is_retryable_not_a_refusal() -> None:
+    """najamjad, 2026-08-16: their cop opened sub-game 2 during our sub-game 1.
+
+    Two processes, one per role, both dialling our single door - so the cop
+    process greets for its own first game while the thief process is still
+    playing ours. Answering that with a permanent refusal ends a series over a
+    race that resolves itself in seconds.
+    """
+    box = _box(1)
+    try:
+        box.negotiate({"sub_game_number": 2})
+    except RuntimeError as error:
+        assert "has not started" in str(error)
+    else:
+        raise AssertionError("an early greeting must be answered, and retryably")
+
+
+def test_a_greeting_for_a_sealed_sub_game_still_refuses() -> None:
+    """Backwards is not a race - that sub-game is reported and cannot be replayed."""
+    from police_thief.services.inbound import HandshakeRejectedError
+
+    box = _box(3)
+    try:
+        box.negotiate({"sub_game_number": 2})
+    except HandshakeRejectedError:
+        pass
+    else:
+        raise AssertionError("a greeting for a settled sub-game must refuse")
+
+
+def test_a_staged_next_sub_game_is_still_promoted_on_the_boundary() -> None:
+    class Accepting:
+        """The staged next-sub-game handler, which accepts what promoted it."""
+
+        declared_sub_game = 2
+
+        def negotiate(self, message):
+            """The staged handler, which accepts the greeting that promoted it."""
+            return {"accepted": True}
+
+    box = _box(1, pending=Accepting())
+    assert box.negotiate({"sub_game_number": 2}) == {"accepted": True}
+    assert box.pending is None

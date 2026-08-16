@@ -172,7 +172,15 @@ def _play(n: int, role: str, args, ids: tuple[str, str], us: str, handler: Inbou
         print(f"    reason: {how}")  # the rule that decided it - never fly blind again
 
     _stage_next_handler(n, role, args, config, handler_box)
-    client.submit_audit(matchrt.disclosure())
+    ours = matchrt.disclosure()
+    ack = client.submit_audit(ours)
+    # Print what they said back. najamjad reported "AUDIT SKIPPED, we received
+    # nothing" for three sub-games we had demonstrably sent (rules 18-20 make
+    # that an accusation, not a nitpick) - and neither side could prove it,
+    # because a successful send left no trace on either log. The reply is the
+    # evidence: theirs, in their words, next to the record count we sent.
+    print(f"  sent our disclosure ({len(ours['records'])} records, "
+          f"sender={ours['sender']}) -> peer replied {ack!r}")
     theirs = wait_for(lambda: handler.audit, NEGOTIATE_WAIT_TIMEOUT,
                       f"opponent's audit disclosure for sub-game {n}")
     report = audit_disclosure(theirs, contract, **matchrt.audit_evidence())

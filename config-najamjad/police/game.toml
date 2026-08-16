@@ -1,0 +1,103 @@
+# Private per-peer configuration - POLICE (cop) side.
+# This file never crosses the network and is not signed.
+# When config/game.json exists, its values OVERRIDE any parallel key here
+# (a private file can never weaken a signed shared condition).
+version = "1.00"
+
+[game]
+group_name = "YANELL11"
+group_id = "yanell11"
+sub_game_number = 1
+members = ["NellKhoury", "YanalSerhan"]
+repos = { cop = "https://github.com/Nell-Kh/police-agent", thief = "https://github.com/Nell-Kh/thief-agent" }
+
+[network]
+my_port = 8801                                 # MY MCP server port (police)
+opponent_url = "http://127.0.0.1:8802/mcp"     # the only thing I know about the opponent
+turn_timeout_seconds = 180
+
+[strategy]
+# The competition brain (see notebooks/analysis.ipynb and README 6).
+#  seal:SealPoliceBrain - the league choice. Wall the board, cross the door,
+#    lock it behind you. Under BELIEF from the contract's fixed start - the only
+#    condition a league match is played in - it is the ONLY cop in the tree that
+#    converts all three thief archetypes: blind @29, enhanced @29, and the elite
+#    evader @30, which every other cop we own leaves at survival. Re-derived by
+#    tests/integration/test_strategy_selection.py from the full belief-mode
+#    tournament matrix on every CI run, and confirmed over the real wire by
+#    scripts/local_two_process_match.py --config-dir scripts/_scratch_config_seal
+#    (six sub-games, six captures @30, both audits clean).
+#    KNOW THIS BEFORE RENEGOTIATING THE CONTRACT: the door-sealing mechanism is
+#    tied to the wall's fixed column, so the advantage is a property of THIS
+#    contract's start (cop 0,0 / thief 3,3) and the cells around it, not of the
+#    brain alone. Start the cop on the far side of the board and the advantage
+#    is gone - wall degrades far more gracefully off-start. A negotiated change
+#    to thief_start/cop_start is therefore a reason to re-run the tournament,
+#    not a formality.
+#  wall:WallPoliceBrain - previous league choice, and the fallback if the start
+#    ever moves. Two of three archetypes and one step faster on them (@28), with
+#    near-total conversion against pursuit-style thieves from any start - but it
+#    cannot convert the elite evader from any start we have measured, which is
+#    the whole reason seal was written.
+#  hybrid:HybridPoliceBrain - do NOT use in league play. Its ~12-step advantage
+#    is a perfect-information artifact; under belief it captures at step 34,
+#    i.e. SLOWER than the wall, and loses to an elite evader just the same.
+#    Kept only as the documented research alternative (notebook 9b, hybrid.py).
+police_class = "police_thief.domain.brain.seal:SealPoliceBrain"
+
+[interop]
+# Which of two lawful readings of the book we speak on the wire. Four places -
+# the commit seal, the scent clamp, the settlement serialization and the signed
+# terms shape - have a kit reading and a book reading, and BOTH are defensible
+# under the rulebook's academic-freedom clause. Picking one silently is the
+# failure: two lawful peers that disagree each conclude the other forged its
+# log, and rules #19/#35 then score both teams zero.
+#
+#   kit  - the class interop kit (copthief-league-protocol) and the reference
+#          peer it pins. Our 14 vendored vectors pass byte-for-byte under it.
+#   book - the printed formulae of ch. 4.3 and ch. 5.3.1, literally.
+#
+# Declared at the handshake beside the locked-model hashes, so a mismatch
+# refuses before kickoff instead of surfacing as a mutual zero at the audit.
+# See docs/REVIEW_HOSTILE.md H0-H4 and README.md section 8.
+profile = "kit"
+
+# Series tie: does the App. F award ADD to the accumulated sub-game totals, or
+# REPLACE them? The book is ambiguous and the kit does NOT settle it - its
+# report_consensus vector pins the serialization and says nothing about
+# aggregate semantics - so this forks the settlement hash under either dialect.
+# Declared separately for that reason. "add" is the reading this project has
+# always used; agree it with the opponent before a counted series.
+tie_award = "add"
+
+[deception]
+# The cop has no claim-feedback channel, so it never risks a directional
+# leak: vague hints give a scent-verifying thief nothing to work with.
+mode = "vague"
+tracked_gap = 2
+window = 3
+
+[trash_talk]
+# How the banter/deception text is produced. The MOVE is always pure Python.
+# claude_api = small cloud model (Haiku); automatic fallback to zero-token template.
+provider = "claude_api"
+every_n_steps = 3
+
+[llm]
+model = "claude-haiku-4-5"
+step_deadline_seconds = 30        # hard cap on LLM thinking per step
+
+[email]
+# The binding league address (rule #51, App. F variables table). This is NOT a
+# preference: report_blocks._is_armed() refuses to arm `counted` for any other
+# recipient, so a report addressed anywhere else scores nothing however well the
+# series went. It previously pointed at a team member's own inbox, which meant
+# every game we played was silently reported as a friendly.
+recipient = "rmisegal+uoh26finalgame@gmail.com"
+
+# draft = build and park in Gmail Drafts; send = actually deliver.
+# Committed as `draft` on purpose: the repository's resting state is the
+# rehearsal state, so no demo, sparring run or accidental invocation can mail
+# the lecturer. Flip to "send" as a deliberate step when starting a COUNTED
+# series (docs/TODO.md 11.3.2) and flip it back afterwards.
+mode = "draft"

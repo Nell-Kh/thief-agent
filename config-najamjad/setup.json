@@ -1,0 +1,20 @@
+{
+  "version": "1.00",
+  "app": {
+    "name": "police-thief-p2p",
+    "log_dir": "logs",
+    "results_dir": "results"
+  },
+  "watchdog": {
+    "heartbeat_interval_sec": 5,
+    "freeze_threshold_sec": 60
+  },
+  "deadline_tracker": {
+    "response_timeout_sec": 30
+  },
+  "gui": {
+    "cell_px": 56,
+    "heat_color": "red",
+    "refresh_ms": 250
+  }
+}

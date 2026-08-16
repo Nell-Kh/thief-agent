@@ -186,6 +186,12 @@ def _play(n: int, role: str, args, ids: tuple[str, str], us: str, handler: Inbou
     report = audit_disclosure(theirs, contract, **matchrt.audit_evidence())
     print(f"  our audit of their disclosure: {report.verdict}"
           + ("" if report.passed else f" - {report.violations}"))
+    # Keep what we audited. The opponent's revealed records are the only place
+    # THEIR positions exist on our side - a lost series with no opponent trace
+    # can be replayed but never explained (sharNamr, 0-6, 2026-08-17).
+    write_lifecycle_file(artifacts, f"opponent_{game_id}_g{n:02d}.json",
+                         {"game_id": game_id, "sub_game_number": n,
+                          "audit_verdict": report.verdict, "disclosure": theirs})
 
     if not report.passed:
         outcome_type, score_us, score_them = "tamper_forfeit", 0, 0

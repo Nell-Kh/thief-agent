@@ -48,6 +48,19 @@ OPENING_WAIT_SECONDS = 120.0
 #: enough that our message still lands before THEY declare us timed out.
 TURN_PATIENCE_SECONDS = 40.0
 
+#: What :func:`spoken_refusal` reports when a peer says no and names no cause.
+#: Named because :func:`negotiate_patiently` has to tell that answer apart from
+#: a stated one, and matching the literal in two files is how they drift apart.
+NO_REASON_GIVEN = "no reason given"
+
+#: Pause between re-offers in :func:`negotiate_patiently`. The silence branch
+#: used to `continue` with no pause at all: it was paced only by the ~10-15s
+#: :class:`PeerClient` spends on its own backoff before raising, so a transport
+#: that failed fast would have spun the CPU flat (measured: 7.2M calls in 3s
+#: against an instant-failing stub). A refusal returns immediately and has no
+#: such accidental pacing, so the pause is what makes re-offering affordable.
+REOFFER_PAUSE_SECONDS = 2.0
+
 
 def other_role(role: str) -> str:
     """The role the opponent plays when we play ``role``."""
@@ -174,8 +187,9 @@ def start_server(handler_box: SwappableHandler, port: int,
 def negotiate_patiently(client, greeting: dict[str, Any],
                         wait_seconds: float = OPENING_WAIT_SECONDS,
                         clock: Callable[[], float] = time.monotonic,
-                        announce: Callable[[str], None] = lambda _message: None) -> dict[str, Any]:
-    """Offer terms, re-offering while the opponent is merely not up yet.
+                        announce: Callable[[str], None] = lambda _message: None,
+                        sleep: Callable[[float], None] = time.sleep) -> dict[str, Any]:
+    """Offer terms, re-offering while the opponent is merely not ready yet.
 
     :meth:`PeerClient.negotiate` carries the contract's *in-match* budget - three
     tries, five seconds apart - because a silence mid-game must become a
@@ -185,25 +199,50 @@ def negotiate_patiently(client, greeting: dict[str, Any],
     ~15s late. Note the asymmetry it left behind - we then waited a patient 180s
     for *their* greeting while giving our own call 15s.
 
-    A refusal (contract or lock mismatch) is not a silence: it propagates at
-    once, because no amount of waiting fixes a digest mismatch.
+    A refusal that NAMES a cause is not a silence: it propagates at once,
+    because no amount of waiting fixes a digest mismatch (sharNamr, 2026-08-15,
+    is why a spoken no is believed at all).
+
+    A refusal that names NOTHING is a different animal, and telling the two
+    apart is the whole point of this function. We answer an early greeting with
+    "not started on this peer yet - retry when it does" and expect the opponent
+    to wait; najamjad's peers answer ours with a bare ``{"ok": false}`` and we
+    used to quit on the first one. That asymmetry cost sub-games 4, 5 and 6 on
+    2026-08-16 - three technical losses taken in 0.00s each, with 120 seconds of
+    patience sitting unused, against peers that were merely mid-sub-game on the
+    other role. A peer with a real objection says what it is; a bare no is the
+    same "not yet" we ourselves send, spoken in a different dialect. So it is
+    re-offered until the budget runs out, and only then does it become the
+    technical loss it would have been immediately.
+
+    The budget is a ceiling on waiting, never on the verdict: a peer refusing
+    for a real reason still fails here, one call in.
     """
     deadline = clock() + wait_seconds
-    waited = False
+    announced: set[str] = set()
+
+    def once(note: str) -> None:
+        """Say something to the operator the first time it becomes true."""
+        if note not in announced:
+            announce(note)
+            announced.add(note)
+
     while True:
         try:
             reply = client.negotiate(greeting)
         except PeerUnreachableError:
             if clock() >= deadline:
                 raise
-            if not waited:
-                announce("opponent not up yet - waiting for it to start...")
-                waited = True
+            once("opponent not up yet - waiting for it to start...")
+            sleep(REOFFER_PAUSE_SECONDS)
             continue
         refusal = spoken_refusal(reply)
-        if refusal:
+        if not refusal:
+            return reply
+        if refusal != NO_REASON_GIVEN or clock() >= deadline:
             raise HandshakeRejectedError(f"opponent refused our greeting: {refusal}")
-        return reply
+        once("opponent said no without a reason - treating it as 'not yet' and re-offering...")
+        sleep(REOFFER_PAUSE_SECONDS)
 
 
 def spoken_refusal(reply: Any) -> str:
@@ -214,11 +253,19 @@ def spoken_refusal(reply: Any) -> str:
     its verdict in the reply (``accepted: false``, ``ok: false``, ``refused``,
     ``error``), and a client that ignores that plays a whole sub-game against
     nothing (sharNamr, 2026-08-15). A spoken no is a refusal, never a success.
+
+    A bare no reports :data:`NO_REASON_GIVEN`, which :func:`negotiate_patiently`
+    reads as "not yet" rather than "never" - so the sentinel is load-bearing,
+    not a display string. Everything here still classifies; what to DO about a
+    reasonless no is that function's decision, not this one's.
     """
     if not isinstance(reply, dict):
         return ""
     if reply.get("accepted") is False or reply.get("ok") is False:
-        return str(reply.get("reason") or reply.get("error") or reply.get("refused") or "no reason given")
+        return str(
+            reply.get("reason") or reply.get("error")
+            or reply.get("refused") or NO_REASON_GIVEN
+        )
     for key in ("refused", "error"):
         if reply.get(key):
             return str(reply[key])

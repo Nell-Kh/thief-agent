@@ -150,3 +150,118 @@ def test_a_stale_pending_never_replaces_a_live_handler() -> None:
         raise AssertionError("an early greeting must be answered retryably")
     assert isinstance(box.pending, Stale), "a non-matching pending must survive untouched"
     assert box.current.declared_sub_game == 2, "the live handler must stay bound"
+
+
+class _Clock:
+    """A monotonic clock the test drives, so patience costs no wall time."""
+
+    def __init__(self) -> None:
+        """Start at zero; only :meth:`sleep` ever moves it."""
+        self.now = 0.0
+
+    def __call__(self) -> float:
+        """Read the clock, in the shape ``negotiate_patiently`` expects."""
+        return self.now
+
+    def sleep(self, seconds: float) -> None:
+        """Spend the pause instantly, so a 120s budget costs no wall time."""
+        self.now += seconds
+
+
+class _Peer:
+    """A peer that answers ``script[i]`` to the i-th greeting, last reply sticking."""
+
+    def __init__(self, *script: object) -> None:
+        """Queue the replies; an ``Exception`` in the script is raised, not returned."""
+        self.script = list(script)
+        self.calls = 0
+
+    def negotiate(self, _greeting: dict) -> object:
+        """Answer the next scripted reply, repeating the last one forever."""
+        self.calls += 1
+        reply = self.script[min(self.calls - 1, len(self.script) - 1)]
+        if isinstance(reply, Exception):
+            raise reply
+        return reply
+
+
+def test_a_reasonless_no_is_re_offered_until_the_peer_is_ready() -> None:
+    """najamjad, 2026-08-16: sub-games 4, 5 and 6, each lost in 0.00 seconds.
+
+    They run one process per role against our single door, so dialling them for
+    sub-game n while their other role is mid-sub-game gets a bare
+    ``{"ok": false}``. We answer THEIR early greeting with "not started yet -
+    retry when it does" and expect patience; quitting on the first bare no was
+    the same race, refused in the opposite direction, and it cost three games
+    out of six with 120 seconds of budget unspent.
+    """
+    from _series_lib import negotiate_patiently
+
+    clock = _Clock()
+    peer = _Peer({"ok": False}, {"ok": False}, {"ok": False}, {"ok": True, "terms": {}})
+    said: list[str] = []
+
+    reply = negotiate_patiently(peer, {"sub_game_number": 4}, wait_seconds=120,
+                                clock=clock, announce=said.append, sleep=clock.sleep)
+
+    assert reply == {"ok": True, "terms": {}}
+    assert peer.calls == 4, "the bare no must be re-offered, not believed once"
+    assert clock.now <= 120, "recovery must happen inside the opening budget"
+    assert any("not yet" in note for note in said), "the operator must be told why we wait"
+
+
+def test_a_refusal_that_names_a_reason_still_fails_on_the_first_call() -> None:
+    """The other half: sharNamr's lesson must survive najamjad's fix.
+
+    A digest or identity mismatch is not a race and never resolves itself, so
+    re-offering it would only spend the budget before failing anyway.
+    """
+    import pytest
+    from _series_lib import HandshakeRejectedError, negotiate_patiently
+
+    clock = _Clock()
+    peer = _Peer({"accepted": False, "reason": "contract digest mismatch"})
+
+    with pytest.raises(HandshakeRejectedError, match="contract digest mismatch"):
+        negotiate_patiently(peer, {}, wait_seconds=120, clock=clock,
+                            announce=lambda _note: None, sleep=clock.sleep)
+
+    assert peer.calls == 1, "a stated refusal must not be re-offered"
+    assert clock.now == 0.0, "and must not spend the patience budget"
+
+
+def test_a_peer_that_only_ever_says_no_becomes_a_technical_loss_at_the_deadline() -> None:
+    """Patience is a ceiling on waiting, not a way to avoid the verdict."""
+    import pytest
+    from _series_lib import HandshakeRejectedError, negotiate_patiently
+
+    clock = _Clock()
+    peer = _Peer({"ok": False})
+
+    with pytest.raises(HandshakeRejectedError, match="no reason given"):
+        negotiate_patiently(peer, {}, wait_seconds=10, clock=clock,
+                            announce=lambda _note: None, sleep=clock.sleep)
+
+    assert clock.now >= 10, "the whole budget must be spent before giving up"
+    assert peer.calls > 1, "and it must have been re-offered while spending it"
+
+
+def test_the_silence_branch_paces_itself_instead_of_spinning() -> None:
+    """It used to ``continue`` with no pause, paced only by PeerClient's backoff.
+
+    Measured against an instant-failing stub: 7.2 million calls in 3 seconds.
+    Nothing was broken while the transport happened to be slow, which is the
+    kind of load-bearing accident worth removing.
+    """
+    from _series_lib import REOFFER_PAUSE_SECONDS, negotiate_patiently
+
+    from police_thief.infra.mcp_client import PeerUnreachableError
+
+    clock = _Clock()
+    peer = _Peer(PeerUnreachableError("down"), PeerUnreachableError("down"), {"ok": True})
+
+    negotiate_patiently(peer, {}, wait_seconds=120, clock=clock,
+                        announce=lambda _note: None, sleep=clock.sleep)
+
+    assert peer.calls == 3
+    assert clock.now == 2 * REOFFER_PAUSE_SECONDS, "each retry must cost a real pause"

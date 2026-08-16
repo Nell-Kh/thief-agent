@@ -79,10 +79,15 @@ def test_an_early_greeting_is_retryable_not_a_refusal() -> None:
     playing ours. Answering that with a permanent refusal ends a series over a
     race that resolves itself in seconds.
     """
+    from fastmcp.exceptions import ToolError
+
     box = _box(1)
     try:
         box.negotiate({"sub_game_number": 2})
-    except RuntimeError as error:
+    except ToolError as error:
+        # ToolError, not a bare exception: FastMCP treats it as expected and
+        # client-facing, so the peer still gets a retryable failure but our
+        # operator log does not get a stack dump per poll.
         assert "has not started" in str(error)
     else:
         raise AssertionError("an early greeting must be answered, and retryably")
@@ -134,10 +139,12 @@ def test_a_stale_pending_never_replaces_a_live_handler() -> None:
             """Never reached: this handler must not be promoted."""
             raise AssertionError("a stale pending handler was promoted")
 
+    from fastmcp.exceptions import ToolError
+
     box = _box(2, pending=Stale())
     try:
         box.negotiate({"sub_game_number": 3})
-    except RuntimeError as error:
+    except ToolError as error:
         assert "has not started" in str(error)
     else:
         raise AssertionError("an early greeting must be answered retryably")

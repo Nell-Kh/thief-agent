@@ -22,6 +22,8 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+from fastmcp.exceptions import ToolError  # noqa: E402
+
 from police_thief.constants import ROLE_POLICE, ROLE_THIEF  # noqa: E402
 from police_thief.infra.mcp_client import PeerUnreachableError  # noqa: E402
 from police_thief.infra.mcp_server import build_server  # noqa: E402
@@ -83,7 +85,7 @@ class SwappableHandler:
         "try again", which every driver's patient-negotiation loop already does.
         """
         if self.current is None:
-            raise RuntimeError("peer is booting - no sub-game handler bound yet, retry")
+            raise ToolError("peer is booting - no sub-game handler bound yet, retry")
         return self.current
 
     def negotiate(self, message: dict[str, Any]) -> dict[str, Any]:
@@ -104,6 +106,14 @@ class SwappableHandler:
         kills a series over a race that resolves itself in seconds. A greeting
         for an EARLIER sub-game still refuses - that one really is unplayable,
         because the sub-game it names is already sealed and reported.
+
+        The "not yet" is raised as FastMCP's ``ToolError``: it reaches the peer
+        as the same retryable failure a bare exception would, but FastMCP
+        treats it as an EXPECTED, client-facing error and does not dump a
+        server-side traceback for it. Against a role-split opponent whose idle
+        process polls us continuously, the traceback was the actual damage -
+        hundreds of stack dumps buried three won sub-games in the operator's
+        log (najamjad, 2026-08-16).
 
         Promotion is CONDITIONAL on ``pending`` naming the sub-game the
         greeting actually asks for. It used to fire on any staged handler at
@@ -126,7 +136,7 @@ class SwappableHandler:
                 return self.current.negotiate(message)
             here = self._active().declared_sub_game
             if isinstance(wanted, int) and wanted > here:
-                raise RuntimeError(
+                raise ToolError(
                     f"sub-game {wanted} has not started on this peer yet (we are "
                     f"playing {here}) - retry when it does"
                 ) from None

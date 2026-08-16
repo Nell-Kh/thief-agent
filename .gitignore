@@ -58,4 +58,12 @@ instruction/*.pdf
 .vscode/
 
 # results
-results/
+#
+# Generated output is ignored by NAME, never as a whole directory. Blanket
+# `results/` (2026-08-16) also swallowed the league lifecycle artifacts -
+# declaration, config, log, result - which are graded deliverables written to
+# results/friendly_<game_id>/ by the series driver. Under that pattern
+# `git add results/` adds nothing and says nothing, so a counted series would
+# be submitted with no evidence beside it. Name the noise instead.
+results/rehearsal*/
+results/*demo*

@@ -58,4 +58,4 @@ instruction/*.pdf
 .vscode/
 
 # results
-results/rehearsal*/
+results/

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -9,6 +10,7 @@ import pytest
 from police_thief.domain.logbook import Logbook
 from police_thief.domain.replay import ReplaySession, grid_size_of, parse_barriers
 from police_thief.domain.sealing import turn_record
+from police_thief.infra.email.reports import log_payload
 
 
 @pytest.fixture
@@ -94,6 +96,79 @@ def test_a_session_loads_from_a_saved_file(book: Logbook, tmp_path: Path) -> Non
     session = ReplaySession.load(path)
     assert session.overall_verdict() == "Verified OK"
     assert session.scene()["position"] == (2, 3)
+
+
+def test_a_session_loads_the_league_lifecycle_log_a_real_match_writes(
+    book: Logbook, tmp_path: Path
+) -> None:
+    """The envelope an actual series produces, not the one only the demo used.
+
+    Every log in ``results/`` is written by the series driver through
+    :func:`log_payload`, which names the sub-game ``sub_game_number`` and files
+    the role under ``summary``. The viewer used to read only ``sub_game`` and
+    ``role``, so it refused all fifty real match logs with ``KeyError`` while
+    the ``book.save()`` demo log that ``scripts/capture_replay_viewer.py``
+    writes opened fine - a green fixture standing in for the artifact the
+    submission is actually graded on. Building this file with the real writer
+    means a future change to that shape breaks this test, not the viewer.
+    """
+    document = log_payload(
+        "uid-1", "them-vs-us", 3,
+        links={"log": "log_them-vs-us_g<NN>.json"},
+        summary={"sub_game_number": 3, "role": "thief", "result": "survival", "steps": 3},
+        records=book.records,
+        recipient="someone@example.com",
+        counted=False,
+    )
+    path = tmp_path / "log_them-vs-us_g03.json"
+    path.write_text(json.dumps(document, indent=2, sort_keys=True), encoding="utf-8")
+
+    session = ReplaySession.load(path)
+
+    assert session.overall_verdict() == "Verified OK"
+    assert session.scene()["position"] == (2, 3)
+    assert session.book.sub_game == 3
+    assert session.book.role == "thief"
+
+
+def test_a_log_that_names_no_role_still_verifies(book: Logbook, tmp_path: Path) -> None:
+    """The earliest self-play logs omit the role, and it is not evidence.
+
+    ``results/log_self-play-opponent-vs-yanell11_g01.json`` carries a summary
+    with no ``role`` in it. The role names the writer in the audit disclosure
+    and appears nowhere in what the viewer draws or verifies, so refusing to
+    check that log's commitments over it would repeat the original mistake in
+    miniature: a readable, intact record turned away by its envelope.
+    """
+    path = tmp_path / "log_roleless_g01.json"
+    path.write_text(
+        json.dumps({
+            "game_id": "roleless",
+            "sub_game_number": 1,
+            "summary": {"result": "capture", "steps": 3},
+            "records": book.records,
+        }),
+        encoding="utf-8",
+    )
+
+    session = ReplaySession.load(path)
+
+    assert session.overall_verdict() == "Verified OK"
+    assert session.book.role == ""
+
+
+def test_a_file_that_is_not_a_match_log_says_so_instead_of_keyerror(tmp_path: Path) -> None:
+    """A file identifying no sub-game must fail by name, not by key.
+
+    ``KeyError('sub_game')`` told a grader nothing about which file was wrong
+    or why; the whole point of accepting two envelopes is that the remaining
+    failure is a genuinely unreadable file, so it should read like one.
+    """
+    path = tmp_path / "log_nothing_g01.json"
+    path.write_text(json.dumps({"game_id": "nothing", "records": []}), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="log_nothing_g01.json"):
+        ReplaySession.load(path)
 
 
 def test_an_empty_log_is_handled(tmp_path: Path) -> None:

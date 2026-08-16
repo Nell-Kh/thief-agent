@@ -89,9 +89,38 @@ class Logbook:
 
     @classmethod
     def load(cls, path: str | Path) -> Logbook:
-        """Read a saved book back - the Replay Viewer's entry point."""
+        """Read a saved book back - the Replay Viewer's entry point.
+
+        Two envelopes carry the same sealed records, and the viewer must open
+        both. :meth:`save` writes the local one (``sub_game``/``role``/
+        ``result``); the series driver writes the league lifecycle one
+        (``sub_game_number``, with the role and outcome nested under
+        ``summary`` - see :func:`police_thief.infra.email.reports.log_payload`).
+        Reading only the local keys is what made the mandatory viewer refuse
+        every log an actual match had ever produced, while the demo log written
+        by ``scripts/capture_replay_viewer.py`` opened fine and hid it. The
+        records themselves are identical under either envelope, so the
+        commitments verify the same way once the book is open.
+
+        Only the identifying pair is required. The role is NOT: it names the
+        writer in :meth:`audit_payload` and nothing the viewer draws, and the
+        earliest self-play artifacts omit it entirely. Refusing to verify a
+        log's commitments over a field verification never reads would be the
+        same mistake in a smaller form, so a missing role loads as ``""``.
+
+        Raises:
+            ValueError: when the file identifies no sub-game under either
+                envelope, i.e. it is not a match log at all.
+        """
         document = json.loads(Path(path).read_text(encoding="utf-8"))
-        book = cls(document["game_id"], int(document["sub_game"]), document["role"])
+        summary = document.get("summary") or {}
+        sub_game = document.get("sub_game", document.get("sub_game_number"))
+        if sub_game is None:
+            sub_game = summary.get("sub_game_number")
+        if sub_game is None:
+            raise ValueError(f"{Path(path).name}: not a match log (no sub-game number)")
+        role = document.get("role") or summary.get("role") or ""
+        book = cls(document["game_id"], int(sub_game), str(role))
         book._records = list(document.get("records", []))
-        book.result = document.get("result")
+        book.result = document.get("result") or summary or None
         return book

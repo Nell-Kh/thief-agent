@@ -104,14 +104,26 @@ class SwappableHandler:
         kills a series over a race that resolves itself in seconds. A greeting
         for an EARLIER sub-game still refuses - that one really is unplayable,
         because the sub-game it names is already sealed and reported.
+
+        Promotion is CONDITIONAL on ``pending`` naming the sub-game the
+        greeting actually asks for. It used to fire on any staged handler at
+        all - and a stale one (staged for sub-game n, then never consumed
+        because the opponent arrived late and ``play_sub_game`` built its own)
+        would then be swapped in for a LIVE handler mid-match. najamjad's thief
+        greeted sub-game 3 during our sub-game 2 (2026-08-16); that promotion
+        replaced the handler holding sub-game 2's turn buffer and killed a game
+        that was otherwise being played correctly.
         """
         try:
             return self._active().negotiate(message)
         except HandshakeRejectedError:
-            if self.pending is not None:
-                self.current, self.pending = self.pending, None
-                return self.current.negotiate(message)
             wanted = message.get("sub_game_number")
+            pending = self.pending
+            if pending is not None and (
+                not isinstance(wanted, int) or pending.declared_sub_game == wanted
+            ):
+                self.current, self.pending = pending, None
+                return self.current.negotiate(message)
             here = self._active().declared_sub_game
             if isinstance(wanted, int) and wanted > here:
                 raise RuntimeError(

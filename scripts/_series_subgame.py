@@ -95,6 +95,11 @@ def play_sub_game(n: int, role: str, args, ids: tuple[str, str], us: str,
     else:
         handler = build_handler(config, role, n)
         handler_box.current = handler
+        # Anything still staged is for THIS sub-game or older - the opponent
+        # arrived late and we built our own handler instead of promoting it.
+        # Leaving it armed lets a later boundary race promote a dead handler
+        # over the live one (najamjad, 2026-08-16, sub-game 2).
+        handler_box.pending = None
 
     matchrt = MatchRuntime(config, game_id=game_id, sub_game=n, github_commit=git_head())
     transport = McpHttpTransport(peer_url_for(args, role),

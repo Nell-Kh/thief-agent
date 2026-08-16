@@ -114,3 +114,32 @@ def test_a_staged_next_sub_game_is_still_promoted_on_the_boundary() -> None:
     box = _box(1, pending=Accepting())
     assert box.negotiate({"sub_game_number": 2}) == {"accepted": True}
     assert box.pending is None
+
+
+def test_a_stale_pending_never_replaces_a_live_handler() -> None:
+    """najamjad, 2026-08-16: sub-game 3's greeting arrived during sub-game 2.
+
+    ``pending`` still held the handler staged for sub-game 2 - never consumed,
+    because the opponent arrived late and ``play_sub_game`` built its own. The
+    old code promoted whatever was staged, so a dead sub-game-2 handler
+    replaced the live one holding that game's turn buffer, and a sub-game being
+    played correctly died. Promotion must name the sub-game it answers.
+    """
+    class Stale:
+        """A handler staged for a sub-game that is already being played."""
+
+        declared_sub_game = 2
+
+        def negotiate(self, message):
+            """Never reached: this handler must not be promoted."""
+            raise AssertionError("a stale pending handler was promoted")
+
+    box = _box(2, pending=Stale())
+    try:
+        box.negotiate({"sub_game_number": 3})
+    except RuntimeError as error:
+        assert "has not started" in str(error)
+    else:
+        raise AssertionError("an early greeting must be answered retryably")
+    assert isinstance(box.pending, Stale), "a non-matching pending must survive untouched"
+    assert box.current.declared_sub_game == 2, "the live handler must stay bound"

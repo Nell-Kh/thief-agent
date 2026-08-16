@@ -42,9 +42,15 @@ from brain_tournament import (  # noqa: E402
 #: from a field that excluded the only candidate able to beat it.
 EXPECTED_BEST = ("seal", "evade")
 
-#: The cops that convert EVERY thief archetype under belief. Three since the
-#: emitter fit; `seal` is the one shipped, for the reason its own test states.
-FULL_CONVERTERS = {"wall", "hybrid", "seal"}
+#: The cops that convert the PURSUIT-style archetypes under belief. All three
+#: barrier cops do. None converts the elite evader any more - round 4 of the
+#: arms race went to the thief - so this set is deliberately not "every thief".
+BARRIER_COPS = {"region", "wall", "hybrid", "seal"}
+
+#: The archetypes a shipped cop is expected to convert. `evade` is ours and is
+#: currently ahead of every cop in the tree; a round-5 cop that converts it
+#: belongs in this set the day it exists.
+CONVERTIBLE = ("blind", "enhanced")
 
 
 #: The shipped configuration directory, module-scoped so the matrix is too.
@@ -94,7 +100,7 @@ def test_the_configured_cop_converts_every_thief_archetype(results) -> None:
     police_spec, _thief_spec = configured(SHIPPED_CONFIG)
     shipped = next(name for name, spec in COPS.items() if spec == police_spec)
     unconverted = [
-        thief for thief in THIEVES
+        thief for thief in CONVERTIBLE
         if results[(shipped, thief)][0] != "capture"
     ]
     assert not unconverted, (
@@ -111,21 +117,19 @@ def test_the_configured_thief_is_the_thief_that_survives_most(results) -> None:
     )
 
 
-def test_every_full_converter_is_named(results) -> None:
-    """If the set of cops that convert everything changes, say so deliberately.
+def test_the_barrier_cops_are_the_ones_that_convert(results) -> None:
+    """Stones are what convert a thief; pure pursuit never has.
 
-    Replaces a single-winner pin, which the emitter fit made meaningless: with
-    three cops converting all three archetypes, "who is first" is decided by a
-    speed tie-break worth zero points. What a contributor must notice is a cop
-    JOINING or LEAVING this set.
+    A cop JOINING or LEAVING this set is the thing a contributor must notice,
+    which is why it is named rather than derived from a ranking.
     """
     converters = {
         cop for cop in COPS
-        if all(results[(cop, thief)][0] == "capture" for thief in THIEVES)
+        if all(results[(cop, thief)][0] == "capture" for thief in CONVERTIBLE)
     }
-    assert converters == FULL_CONVERTERS, (
-        f"the cops converting every archetype are {sorted(converters)}, not "
-        f"{sorted(FULL_CONVERTERS)} - update FULL_CONVERTERS deliberately"
+    assert converters == BARRIER_COPS, (
+        f"the cops converting {list(CONVERTIBLE)} are {sorted(converters)}, not "
+        f"{sorted(BARRIER_COPS)} - update BARRIER_COPS deliberately"
     )
     assert best_thief(results) == EXPECTED_BEST[1]
 
@@ -151,18 +155,19 @@ def test_the_wall_cop_captures_faster_than_the_hybrid_under_belief(results) -> N
     assert max(wall) <= min(hybrid)
 
 
-def test_the_barrier_cops_convert_the_elite_evader(results) -> None:
-    """Who beats the evader, and what changed the answer.
+def test_no_cop_in_the_tree_converts_the_elite_evader(results) -> None:
+    """Round 4: the thief is in front, and this is where a round-5 cop lands.
 
-    `seal` was written because `wall` oscillated two cells from the door
-    forever - and we read that as needing commitment rather than information.
-    Both were true. The emitter fit supplied the information (the transmitted
-    trail clamps into a plateau, so the peak located nothing), and with it the
-    barrier cops convert the evader too. The pure-pursuit cop still cannot:
-    equal speed with no stones is the parity dance, exactly as README 5 says.
+    The order of the race, so nobody re-reads a stale table: `wall` beat the
+    evader, so `evade` was tuned and beat `wall`; `seal` was written and beat
+    `evade`; the emitter fit (`domain/emitter.py`) let every barrier cop beat
+    it again; and then ``openness`` learned to count a placed stone as a wall,
+    which stopped the thief walking into the door a wall cop leaves for it -
+    and none of them convert it any more. Every step of that was measured
+    here. A round-5 cop is exactly the change that breaks this test.
     """
-    for cop in FULL_CONVERTERS:
+    for cop in COPS:
         outcome, winner, _steps = results[(cop, "evade")]
-        assert (outcome, winner) == ("capture", "police"), f"{cop} vs evade: {outcome}"
-    outcome, winner, _steps = results[("blind", "evade")]
-    assert (outcome, winner) == ("survival", "thief"), "pure pursuit should not convert"
+        assert (outcome, winner) == ("survival", "thief"), (
+            f"{cop} converts the evader again - the race moved; update this test"
+        )

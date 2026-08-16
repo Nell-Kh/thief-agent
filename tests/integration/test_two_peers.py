@@ -64,26 +64,27 @@ def test_a_full_match_reaches_an_agreed_verdict(peers) -> None:
     assert police.result["type"] in {"capture", "survival"}
 
 
-def test_the_shipped_cop_converts_the_elite_evader_under_belief(peers) -> None:
-    """Shipped mirror match pinned: seal cop vs elite evader ends in capture.
+def test_the_shipped_mirror_match_settles_on_an_agreed_verdict(peers) -> None:
+    """The shipped pair against itself, through the real blind pipeline.
 
-    History, because this test has now asserted both answers. The first internet
-    rehearsal used the wall cop and ended in thief survival six times out of six.
-    The seal cop was written specifically to beat that evader - commitment rather
-    than better information: cross the door and spend a stone ON it - and does.
-    The wall cop then shipped anyway for a while, on a tournament that had never
-    measured seal at all; once it did, seal converted all three archetypes and
-    wall two, and the shipped brain changed to match.
+    History, because this test has now asserted both answers. The wall cop lost
+    six sub-games out of six to the evader in the first internet rehearsal; the
+    seal cop was written to beat it - commitment rather than information: cross
+    the door and spend a stone ON it - and did; the emitter fit then let every
+    barrier cop beat it; and round 4 gave the thief an ``openness`` that counts
+    a stone as a wall, which stopped it walking into the door the wall cop
+    leaves, and put the thief back in front of everything in the tree.
 
-    This match is the mirror of what a league sub-game actually runs: the shipped
-    cop against the shipped thief through the real blind pipeline. It pins the
-    outcome so a regression in either brain is caught here rather than in a
-    counted series.
+    So the verdict this mirror settles on is not the invariant - the race keeps
+    moving it, and tests/integration/test_strategy_selection.py is where that
+    fact is owned and re-derived. What must hold here is what this file is for:
+    two independent peers, exchanging only what the wire allows, agreeing on ONE
+    verdict, with the shipped brains rather than doubles.
     """
     police, thief = peers
     play_out(police, thief)
-    assert police.result["type"] == "capture"
-    assert police.result["winner"] == "police"
+    assert police.result["type"] == thief.result["type"] == "survival"
+    assert police.result["winner"] == thief.result["winner"] == "thief"
 
 
 def test_the_mutual_audit_passes_on_both_sides(peers) -> None:

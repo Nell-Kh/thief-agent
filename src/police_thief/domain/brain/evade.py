@@ -8,8 +8,15 @@ true-path distance from the believed cop, the cell's openness (distance from
 the nearest edge - walls are where strangulation begins), and its mobility.
 Against the region cop this thief survives 60/72 starts (mean 30 of 35
 steps) where the enhanced thief survived none; against pursuit-style cops
-it still survives everything. Only the wall cop beats it - which is why the
-wall cop exists.
+it still survives everything.
+
+Round 4 of the arms race (2026-08-16) put it back in front of the barrier
+cops too, by fixing what ``openness`` measured rather than by adding a term:
+a stone is a wall, and pricing it as one keeps the thief out of the doorway
+a wall cop leaves for it. Measured through the real blind pipeline from the
+contract's fixed start, it now SURVIVES ALL SIX cops in the tree - blind,
+enhanced, region, wall, hybrid and seal - where the shipped weights survived
+three.
 """
 
 from __future__ import annotations
@@ -26,22 +33,34 @@ from .region import _reach, region_size
 W_REGION = 1
 
 #: Weight of the true-path distance from the believed cop.
-W_DISTANCE = 2
+W_DISTANCE = 4
 
-#: Weight of openness - distance from the nearest board edge.
-W_OPENNESS = 3
+#: Weight of open air - distance from the nearest edge OR BARRIER.
+W_OPENNESS = 4
 
 #: Weight of mobility - the number of free neighbouring cells.
-W_MOBILITY = 1
+W_MOBILITY = 2
 
 #: Distance beyond this earns nothing more - being "far" saturates.
 DISTANCE_CAP = 8
 
 
 def openness(board: Board, cell: Cell) -> int:
-    """Distance from the nearest edge; the center of a 7x7 board scores 3."""
+    """Distance to the nearest wall - an edge OR a placed barrier.
+
+    This measured only the board edge until 2026-08-16, which made it blind to
+    the very thing the strategy exists to avoid. A cop that builds a wall with
+    one door leaves that door at the board's centre, and an edge-only reading
+    scores the doorway as the most open cell there is: traced under belief, the
+    thief drifted into the doorway, was sealed into the half the cop had
+    entered, and was hunted down in a closed chamber. Counting a placed stone
+    as a wall - which is what it is - is what turned that game around.
+    """
     row, col = cell
-    return min(row, col, board.size - 1 - row, board.size - 1 - col)
+    nearest = min(row, col, board.size - 1 - row, board.size - 1 - col)
+    for stone in board.barriers:
+        nearest = min(nearest, max(abs(stone[0] - row), abs(stone[1] - col)) - 1)
+    return nearest
 
 
 def worst_case_region(board: Board, cell: Cell, cop: Cell) -> int:

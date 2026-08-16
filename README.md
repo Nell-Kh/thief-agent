@@ -303,11 +303,11 @@ rather than promoted to default.
 league match is ever played in — inferred positions, from the contract's fixed start — the
 hybrid's speed advantage inverts:
 
-| cop (belief, fixed start) | vs. blind thief | vs. enhanced thief | vs. elite evader |
+| cop (belief, fixed start) | vs. blind thief | vs. enhanced thief | vs. elite evader (§6c) |
 |---|---|---|---|
-| Wall | capture @ 24 | capture @ 24 | capture @ 24 |
-| Hybrid | capture @ 25 | capture @ 25 | capture @ 25 |
-| **Seal** (default, §6b) | capture @ 25 | capture @ 25 | capture @ 25 |
+| Wall | capture @ 24 | capture @ 24 | **survival** |
+| Hybrid | capture @ 25 | capture @ 25 | **survival** |
+| **Seal** (default) | capture @ 25 | capture @ 25 | **survival** |
 
 *Those are the numbers **after** the emitter fit below. Before it the same table read
 wall 28/28/**survival**, hybrid 34/34/**survival**, seal 29/29/**capture @30** — one cop
@@ -345,6 +345,32 @@ zero points, so `tests/integration/test_strategy_selection.py` now pins **conver
 property the rulebook pays for — and names the converting set, rather than crowning a winner.
 `seal` remains the shipped cop because its conversion is structural (cross the door, spend a
 stone on it, hunt a closed chamber) where `wall`'s now rests on the belief being precise.
+
+### 6c. Round 4 — a stone is a wall
+
+With every barrier cop converting every thief (§6b), the next question was whether the thief
+could be brought back. Deeper pessimism did not do it: extending the max-min horizon from one
+cop reply to four changed **not a single game**. So instead of tuning weights we traced a lost
+game under belief, and the mistake was visible by step 16 — the thief kept drifting into the
+**doorway** of the wall the cop had just built, then got sealed into the half the cop had
+entered and hunted down in a closed chamber.
+
+The cause was one function. `openness()` scored "distance from the nearest **edge**" — a static
+board property that cannot see a barrier — while its own docstring claimed walls were what it
+existed to avoid. On a walled board the most "open" cell by that measure is the door: the exact
+cell a wall cop wants the thief standing in. Counting a placed stone as a wall (and re-weighting
+distance and mobility with it) is the whole change:
+
+| thief (belief, fixed start) | blind | enhanced | region | wall | hybrid | seal |
+|---|---|---|---|---|---|---|
+| evade, edge-only openness | survives | survives | survives | caught @25 | caught @29 | caught @26 |
+| **evade, a stone is a wall** | survives | survives | survives | **survives** | **survives** | **survives** |
+
+It holds under perfect information too, from three separate starts
+(`test_wall_and_evade.py`), so it is not an artifact of the belief pipeline. The arms race now
+stands at: no cop in this tree converts our elite evader, and
+`test_strategy_selection.py::test_no_cop_in_the_tree_converts_the_elite_evader` is the test a
+round-5 cop must break.
 
 **Determinism, redefined.** Along the way "deterministic" stopped meaning "the same object always
 decides the same way" (true but uninteresting) and came to mean the operationally relevant claim:
@@ -520,7 +546,7 @@ All rows above are **perfect information**. Under belief, from the contract's fi
 |---|---|---|---|
 | vs. blind thief | capture @ 24 | capture @ 25 | capture @ 25 |
 | vs. enhanced thief | capture @ 24 | capture @ 25 | capture @ 25 |
-| vs. elite evader | capture @ 24 | capture @ 25 | capture @ 25 |
+| vs. elite evader (§6c) | survival | survival | survival |
 
 The belief table is not a notebook figure copied by hand — it is re-derived on every test run.
 `scripts/brain_tournament.py` plays every cop brain against every thief brain as full
@@ -548,7 +574,7 @@ survival declaration lands one step later on its own clock.
 
 | Engineering | Value |
 |---|---|
-| Test suite | 855 tests collected (1 environment-dependent skip; the suite itself verifies this number) |
+| Test suite | 856 tests collected (1 environment-dependent skip; the suite itself verifies this number) |
 | Coverage | 97.51% (gate: ≥ 85%, `pyproject.toml fail_under=85`) |
 | Token budget utilization (measured, full series) | ~14% of the ~200k series budget |
 | Interop conformance vectors, byte-exact | 14 vendored fixtures, 14 dedicated tests |
@@ -608,7 +634,7 @@ Rule #55 restricts self-grading to code quality, never the league outcome — th
 that, and only that, measured against this repository's own standing definition of done
 (`docs/TODO.md`, front matter):
 
-- **Tests & coverage:** 855 tests collected, 97.51% coverage against an 85%-floor gate that fails
+- **Tests & coverage:** 856 tests collected, 97.51% coverage against an 85%-floor gate that fails
   the whole suite if crossed — this is a hard CI gate, not an aspiration. The suite count is
   asserted by the suite itself (`test_readme_integrity.py`), so this line cannot silently rot.
 - **Lint:** `ruff check .` clean against the configured rule families (E,F,W,I,N,UP,B,C4,SIM),

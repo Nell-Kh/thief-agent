@@ -49,11 +49,17 @@ def test_reference_style_thieves_die_fast(config: ConfigManager, starts) -> None
 
 
 @pytest.mark.parametrize("starts", [((0, 0), (6, 6)), ((3, 0), (3, 6)), ((6, 3), (0, 3))])
-def test_the_elite_evader_still_falls(config: ConfigManager, starts) -> None:
-    """The tripwires commit to the wall in time to convert the strongest thief."""
+def test_the_elite_evader_no_longer_falls(config: ConfigManager, starts) -> None:
+    """Round 4: the tripwires still fire, and the thief walks away anyway.
+
+    The hybrid's commitment logic is unchanged and still correct - what moved
+    is the thief. Its ``openness`` counts a placed stone as a wall now, so it
+    stops drifting into the door a wall plan leaves open, and the wall closes
+    on empty board. Pinned as survival so a round-5 cop that converts it again
+    shows up here as a failure, which is the only way anyone would notice.
+    """
     state = play(config, EvadeThiefBrain, *starts)
-    assert state.outcome is not None and state.outcome.event == "capture"
-    assert state.step <= config.contract.movement.max_moves - 1
+    assert state.outcome is not None and state.outcome.event == "survival"
 
 
 def test_commitment_to_the_wall_is_one_way(config: ConfigManager) -> None:

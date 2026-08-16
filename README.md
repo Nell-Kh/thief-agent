@@ -388,20 +388,33 @@ The evader's whole edge is that it prices the cop's best reply before it moves �
 pessimism — while every cop before this one planned zero plies ahead. `brain/search.py` is a
 two-ply minimax (cop, thief, cop, thief, evaluate) over the cop's steps and stones, alpha-beta
 pruned, valuing a position by the thief's safe region, its exits and its distance. On the open
-board it is too wide to afford and too shallow to see a wall pay off; inside the sealed chamber
-it is cheap and decisive. `brain/box.py` keeps the seal cop's opening untouched and hands the
-position to the search the moment the chamber closes:
+board it is too wide to afford and too shallow to see a wall pay off; with the board halved it is
+cheap and decisive. `brain/box.py` keeps the seal cop's opening untouched and hands the position
+to the search **the moment the wall stands**. Where that hand-off sits was measured, not chosen:
+handing over before the wall is complete is catastrophic (0 of 40 starts — a two-ply horizon
+never finishes a wall), and handing over only once the door is stoned costs a step. Structure by
+plan; the moment it exists, search.
 
 | condition | seal | **box** |
 |---|---|---|
 | from the turn-20 chamber, 15 turns, perfect information | survival | **capture in 5** |
-| fixed start, perfect information | survival | **capture @25** |
-| 60 sampled starts, perfect information | 11 captures | **60 captures**, mean 26.7 steps |
-| fixed start, **belief**, real pipeline — vs blind / enhanced / evade | @26 / @26 / survival | **@28 / @28 / @26** |
+| fixed start, perfect information | survival | **capture @24** |
+| 60 sampled starts, perfect information | 11 captures | **60 captures**, mean 25.7, worst 30 |
+| fixed start, **belief**, real pipeline — vs blind / enhanced / evade | @26 / @26 / survival | **@27 / @27 / @25** |
+
+**Red team.** "Converts our three thieves" is the wrong bar for "as strong as possible", so
+`tests/adversaries/` holds thieves that do not ship, each written to attack one assumption of the
+plan: a **two-ply search thief** (the cop's own weapon, mirrored), a **door camper** that loves the
+doorway and the cop's side of the wall, a **wall-hugger** that never lets the halving separate them,
+and a **pure distance runner**; plus, in the research harness, a late crosser, a side camper and a
+one-ply searcher. Under perfect information from the fixed start and 20 sampled starts each: **8
+adversaries, 160 of 160 starts converted**, mean 25.6–26.6 steps. `test_red_team_cop.py` holds the
+fixed start of every shipped adversary and a six-start spread as the regression guard.
 
 The arms race now stands at: `box` converts every thief in the tree including our own elite
-evader, and `test_strategy_selection.py::test_exactly_the_round_five_cop_converts_the_elite_evader`
-is the test a round-6 thief must break.
+evader and every adversary built to break it, and
+`test_strategy_selection.py::test_exactly_the_round_five_cop_converts_the_elite_evader` is the
+test a round-6 thief must break.
 
 **Determinism, redefined.** Along the way "deterministic" stopped meaning "the same object always
 decides the same way" (true but uninteresting) and came to mean the operationally relevant claim:
@@ -605,7 +618,7 @@ survival declaration lands one step later on its own clock.
 
 | Engineering | Value |
 |---|---|
-| Test suite | 891 tests collected (1 environment-dependent skip; the suite itself verifies this number) |
+| Test suite | 908 tests collected (1 environment-dependent skip; the suite itself verifies this number) |
 | Coverage | 97.61% (gate: ≥ 85%, `pyproject.toml fail_under=85`) |
 | Token budget utilization (measured, full series) | ~14% of the ~200k series budget |
 | Interop conformance vectors, byte-exact | 14 vendored fixtures, 14 dedicated tests |
@@ -665,7 +678,7 @@ Rule #55 restricts self-grading to code quality, never the league outcome — th
 that, and only that, measured against this repository's own standing definition of done
 (`docs/TODO.md`, front matter):
 
-- **Tests & coverage:** 891 tests collected, 97.61% coverage against an 85%-floor gate that fails
+- **Tests & coverage:** 908 tests collected, 97.61% coverage against an 85%-floor gate that fails
   the whole suite if crossed — this is a hard CI gate, not an aspiration. The suite count is
   asserted by the suite itself (`test_readme_integrity.py`), so this line cannot silently rot.
 - **Lint:** `ruff check .` clean against the configured rule families (E,F,W,I,N,UP,B,C4,SIM),

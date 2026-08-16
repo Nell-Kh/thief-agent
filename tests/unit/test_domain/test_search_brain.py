@@ -107,10 +107,18 @@ def test_the_box_cop_boxes_the_evader_inside_the_sealed_chamber(contract) -> Non
     assert step + 1 <= 6, f"captured at turn {step + 1}; the measured figure is 5"
 
 
-def test_the_chamber_is_not_closed_while_the_thief_reads_as_in_the_doorway(contract) -> None:
-    """A doorway belief is ambiguous; the seal cop's rule, inherited on purpose."""
+def test_the_search_owns_the_position_once_the_wall_stands(contract) -> None:
+    """Hand-off is on the wall, not the door - and never on a doorway belief.
+
+    Handing over before the wall is complete was measured catastrophic (0 of
+    40 starts: a two-ply horizon never finishes a wall); handing over only once
+    the door is stoned costs a step. A believed thief in the wall column is
+    ambiguous and stays with the seal cop's adjacent-trap rule.
+    """
     cop = BoxPoliceBrain(ROLE_POLICE, contract)
-    board = Board(7, set(SEALED_WALL))
-    assert cop._chamber_closed(BrainView(ROLE_POLICE, (3, 4), (5, 5), board, 7, 20))
-    assert not cop._chamber_closed(BrainView(ROLE_POLICE, (3, 4), (2, 3), board, 7, 20))
-    assert not cop._chamber_closed(BrainView(ROLE_POLICE, (3, 4), (5, 1), board, 7, 20))
+    open_door = Board(7, set(SEALED_WALL) - {(3, 3)})
+    assert cop._search_owns(BrainView(ROLE_POLICE, (3, 4), (5, 5), open_door, 8, 15))
+    assert cop._search_owns(BrainView(ROLE_POLICE, (3, 2), (5, 5), open_door, 8, 15))
+    assert not cop._search_owns(BrainView(ROLE_POLICE, (3, 4), (2, 3), open_door, 8, 15))
+    five_stones = Board(7, set(SEALED_WALL) - {(3, 3), (6, 3)})
+    assert not cop._search_owns(BrainView(ROLE_POLICE, (5, 2), (5, 5), five_stones, 9, 13))

@@ -40,17 +40,20 @@ from brain_tournament import (  # noqa: E402
 #: It read ("wall", "evade") while `seal` was absent from the harness's COPS
 #: dict, which made the gate self-consistent and wrong: it re-derived a winner
 #: from a field that excluded the only candidate able to beat it.
-EXPECTED_BEST = ("seal", "evade")
+EXPECTED_BEST = ("box", "evade")
 
-#: The cops that convert the PURSUIT-style archetypes under belief. All three
-#: barrier cops do. None converts the elite evader any more - round 4 of the
-#: arms race went to the thief - so this set is deliberately not "every thief".
-BARRIER_COPS = {"region", "wall", "hybrid", "seal"}
+#: The cops that convert the PURSUIT-style archetypes under belief. Every
+#: barrier cop does. Only ONE of them converts the elite evader (see
+#: :data:`ELITE_CONVERTERS`), so this set is deliberately not "every thief".
+BARRIER_COPS = {"region", "wall", "hybrid", "seal", "box"}
 
-#: The archetypes a shipped cop is expected to convert. `evade` is ours and is
-#: currently ahead of every cop in the tree; a round-5 cop that converts it
-#: belongs in this set the day it exists.
+#: The archetypes every barrier cop is expected to convert.
 CONVERTIBLE = ("blind", "enhanced")
+
+#: The cops that convert OUR OWN elite evader under belief - round 5 of the
+#: arms race, and until it existed this set was empty. A cop joining it is the
+#: headline; a cop leaving it is the regression that loses league games.
+ELITE_CONVERTERS = {"box"}
 
 
 #: The shipped configuration directory, module-scoped so the matrix is too.
@@ -155,19 +158,33 @@ def test_the_wall_cop_captures_faster_than_the_hybrid_under_belief(results) -> N
     assert max(wall) <= min(hybrid)
 
 
-def test_no_cop_in_the_tree_converts_the_elite_evader(results) -> None:
-    """Round 4: the thief is in front, and this is where a round-5 cop lands.
+def test_exactly_the_round_five_cop_converts_the_elite_evader(results) -> None:
+    """Round 5: the box cop is in front, and this is where a round-6 thief lands.
 
     The order of the race, so nobody re-reads a stale table: `wall` beat the
     evader, so `evade` was tuned and beat `wall`; `seal` was written and beat
     `evade`; the emitter fit (`domain/emitter.py`) let every barrier cop beat
-    it again; and then ``openness`` learned to count a placed stone as a wall,
-    which stopped the thief walking into the door a wall cop leaves for it -
-    and none of them convert it any more. Every step of that was measured
-    here. A round-5 cop is exactly the change that breaks this test.
+    it again; then ``openness`` learned to count a placed stone as a wall and
+    the thief walked past all of them; and then `box` kept seal's opening and
+    replaced its endgame with a two-ply search, which boxes the evader inside
+    the sealed chamber where the region hunt danced. Every step of that was
+    measured here. A round-6 thief is exactly the change that breaks this test.
     """
-    for cop in COPS:
-        outcome, winner, _steps = results[(cop, "evade")]
-        assert (outcome, winner) == ("survival", "thief"), (
-            f"{cop} converts the evader again - the race moved; update this test"
-        )
+    converters = {
+        cop for cop in COPS
+        if results[(cop, "evade")][:2] == ("capture", "police")
+    }
+    assert converters == ELITE_CONVERTERS, (
+        f"the cops converting the elite evader are {sorted(converters)}, not "
+        f"{sorted(ELITE_CONVERTERS)} - the race moved; update ELITE_CONVERTERS"
+    )
+
+
+def test_the_shipped_cop_converts_the_elite_evader(results) -> None:
+    """The league choice must be an elite converter, or the choice is wrong."""
+    police_spec, _thief_spec = configured(SHIPPED_CONFIG)
+    shipped = next(name for name, spec in COPS.items() if spec == police_spec)
+    assert shipped in ELITE_CONVERTERS, (
+        f"config/police/game.toml ships {shipped!r}, which does not convert the "
+        f"elite evader under belief - ship one of {sorted(ELITE_CONVERTERS)}"
+    )

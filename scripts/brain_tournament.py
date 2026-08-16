@@ -55,6 +55,7 @@ COPS = {
     "hybrid": f"{BRAIN}.hybrid:HybridPoliceBrain",
     "wall": f"{BRAIN}.wall:WallPoliceBrain",
     "seal": f"{BRAIN}.seal:SealPoliceBrain",
+    "box": f"{BRAIN}.box:BoxPoliceBrain",
 }
 
 #: Every thief brain in the tree.

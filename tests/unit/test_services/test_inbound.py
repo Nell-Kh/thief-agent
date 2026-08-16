@@ -15,7 +15,11 @@ FLAT_TERMS = {
     "thief_start": [3, 3], "cop_start": [0, 0], "num_games": 6,
 }
 NONCE = "a1" * 16
-OUR_EXTRAS = {"role": "police", "sub_game_number": 1, "scent_model_sha256": "d" * 64}
+OUR_EXTRAS = {
+    "role": "police", "sub_game_number": 1,
+    "scent_model_sha256": "d" * 64,   # advisory: a difference here plays on
+    "wire_shape_sha256": "c" * 64,    # sealing: a difference here refuses
+}
 
 
 def terms(**overrides) -> dict:
@@ -29,6 +33,7 @@ def terms(**overrides) -> dict:
         "group_id": "team-b",
         "counted_games_played": 2,
         "scent_model_sha256": "d" * 64,
+        "wire_shape_sha256": "c" * 64,
         "step0_commit": "e" * 64,
     }
     base.update(overrides)
@@ -66,9 +71,20 @@ def test_a_terms_mismatch_refuses_the_match(handler: InboundHandler) -> None:
         handler.negotiate(terms(terms=bad, signature=sign_terms(bad, NONCE)))
 
 
-def test_a_scent_model_mismatch_refuses_the_match(handler: InboundHandler) -> None:
-    with pytest.raises(HandshakeRejectedError, match="scent_model"):
-        handler.negotiate(terms(scent_model_sha256="f" * 64))
+def test_a_scent_model_mismatch_is_accepted_because_the_field_is_unsealed(
+    handler: InboundHandler,
+) -> None:
+    """Different kernels, same sealed bytes - the handshake must not die here.
+
+    See ``test_negotiation.py`` for why: nothing about the scent field enters
+    a commitment, the signed terms or the settlement scope.
+    """
+    assert handler.negotiate(terms(scent_model_sha256="f" * 64))["accepted"] is True
+
+
+def test_a_wire_shape_mismatch_still_refuses_the_match(handler: InboundHandler) -> None:
+    with pytest.raises(HandshakeRejectedError, match="wire_shape"):
+        handler.negotiate(terms(wire_shape_sha256="f" * 64))
 
 
 def test_terms_from_the_wrong_role_are_refused(handler: InboundHandler) -> None:

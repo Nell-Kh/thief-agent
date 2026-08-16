@@ -9,6 +9,7 @@ import pytest
 from police_thief.domain.negotiation import (
     TermsRejectedError,
     build_terms,
+    model_advisories,
     validate_terms,
 )
 from police_thief.shared.config import ConfigManager
@@ -86,10 +87,44 @@ def test_a_bad_signature_is_refused(police: ConfigManager, thief: ConfigManager)
         check(greeting, police)
 
 
-def test_a_scent_model_mismatch_is_refused(police: ConfigManager, thief: ConfigManager) -> None:
+def test_a_scent_model_mismatch_plays_on_and_is_announced(
+    police: ConfigManager, thief: ConfigManager
+) -> None:
+    """History: this used to refuse, and refusing was strictly more than the harm.
+
+    The scent grid is not in the commit preimage (``turn_record`` seals the
+    position, move, intent and hint - never the field), not among the fourteen
+    signed terms, and not in the settlement scope. Two peers on different scent
+    models therefore cannot fail each other's audit, fork the ``game_uid`` or
+    fork ``mutual_agreement.sha256``; each simply reads the other's trail
+    through its own kernel, which ``domain.emitter`` now does at 11 of 11
+    against a foreign one.
+
+    najamjad (2026-08-16) declare their model and never read ours, so this
+    refusal was ours alone: it would have forfeited a game we could have
+    played, over a field neither side hashes. It is an advisory now - said out
+    loud, because a difference nobody is told about is how two teams finish a
+    series each believing the other agreed with them.
+    """
     greeting = greeting_of(thief, scent_model_sha256="f" * 64)
-    with pytest.raises(TermsRejectedError, match="scent_model"):
+    assert check(greeting, police)
+    notes = model_advisories(greeting, negotiate_extras("police", 1))
+    assert len(notes) == 1 and "scent_model_sha256" in notes[0]
+
+
+def test_a_wire_shape_mismatch_is_still_refused(
+    police: ConfigManager, thief: ConfigManager
+) -> None:
+    """The families that fork SEALED bytes keep refusing - that is the line."""
+    greeting = greeting_of(thief, wire_shape_sha256="f" * 64)
+    with pytest.raises(TermsRejectedError, match="wire_shape"):
         check(greeting, police)
+
+
+def test_matching_scent_models_raise_no_advisory(
+    police: ConfigManager, thief: ConfigManager
+) -> None:
+    assert model_advisories(greeting_of(thief), negotiate_extras("police", 1)) == []
 
 
 def test_an_omitted_model_family_is_never_refused(

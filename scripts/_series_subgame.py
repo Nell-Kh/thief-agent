@@ -28,7 +28,7 @@ from _series_lib import (  # noqa: E402
 sys.path.insert(0, str(ROOT / "src"))
 
 from police_thief.domain.audit import audit_disclosure  # noqa: E402
-from police_thief.domain.negotiation import build_terms  # noqa: E402
+from police_thief.domain.negotiation import build_terms, model_advisories  # noqa: E402
 from police_thief.infra.email.naming import (  # noqa: E402
     config_file_name,
     write_lifecycle_file,
@@ -155,6 +155,8 @@ def _play(n: int, role: str, args, ids: tuple[str, str], us: str, handler: Inbou
         raise RuntimeError(f"sub-game {n}: opponent declared group_id {their_group!r}, "
                            f"expected {args.opponent_group_id!r} - check --opponent-group-id")
     print(f"  negotiated OK with {their_group} (role {handler.opponent_terms.get('role')})")
+    for note in model_advisories(handler.opponent_terms, negotiate_extras(role, n)):
+        print(f"  note: {note}")
 
     play_networked(role, matchrt, client, handler)
     outcome_type = (matchrt.result or {}).get("type", "undecided")

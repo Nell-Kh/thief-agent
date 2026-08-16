@@ -46,7 +46,7 @@ binding parameter table of Appendix ו — see the table at the end.
 | 20 | must | A replay viewer reconstructs and verifies the log | `domain/replay.py` + `gui/replay.py` (Verified OK / TAMPERED stamp) | `test_replay.py` | ✔ |
 | 21 | must | Declare the truth when caught | `services/concession.py::answer_claim`, called from `turn_taking` — a true claim is always answered `caught: true` with our own sealed cell | `test_concession.py` | ✔ |
 | 22 | never | No false capture declarations | The capture claim is the cop's own sealed position; a lie dies in the audit | `test_hostile_wire.py`; audit cross-check | ✔ |
-| 23 | must | The scent-emission model is cryptographically locked pre-game | `interop.scent_model_lock` / `scent.lock_sha256` — sha256 over the registered `multiplicative_book_v1` document, declared in `negotiate_extras` | `test_negotiation.py::test_a_scent_model_mismatch_is_refused` | ✔ |
+| 23 | must | The scent-emission model is cryptographically locked pre-game | `interop.scent_model_lock` / `scent.lock_sha256` — sha256 over the registered `multiplicative_book_v1` document, declared in `negotiate_extras`. A peer declaring a *different* model is announced, not refused: the field is in no commitment, no signed term and no settlement scope, so it cannot void a game (`negotiation.ADVISORY_FAMILIES`) | `test_negotiation.py::test_a_scent_model_mismatch_plays_on_and_is_announced` | ✔ |
 | 24 | must | Cryptographic hardware declaration pre-game | `sealing.step0_record` + `shared/sysinfo.hardware_spec`, sealed as Step-0 | `test_sealing.py::test_step0_declares_the_mandatory_identity_fields` | ✔ |
 
 ## Group 4 — Strategy, language, public network (rules #25–#30)

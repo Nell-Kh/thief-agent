@@ -13,12 +13,14 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from _series_lib import (  # noqa: E402
+from _series_lib import (
     NEGOTIATE_WAIT_TIMEOUT,
     ROOT,
     SwappableHandler,
     git_head,
     negotiate_patiently,
+    now_iso,
+    opponent_commit,  # noqa: E402
     other_role,
     play_networked,
     score_for,
@@ -164,6 +166,7 @@ def _play(n: int, role: str, args, ids: tuple[str, str], us: str, handler: Inbou
     for note in model_advisories(handler.opponent_terms, negotiate_extras(role, n)):
         print(f"  note: {note}")
 
+    started_at = now_iso()
     play_networked(role, matchrt, client, handler)
     outcome_type = (matchrt.result or {}).get("type", "undecided")
     print(f"  settled locally: {outcome_type} after {matchrt.view.step} steps")
@@ -206,10 +209,10 @@ def _play(n: int, role: str, args, ids: tuple[str, str], us: str, handler: Inbou
     log_name = f"log_{game_id}_g{n:02d}.json"
     row = {
         "sub_game_number": n, "roles": {us: role, opponent: expect_role},
-        "started_at": "", "ended_at": "",
+        "started_at": started_at, "ended_at": now_iso(),
         "result": outcome_type, "winner_group": winner, "tie": tie,
         "steps": matchrt.view.step,
-        "github_commit": {us: git_head(), opponent: "unknown"},
+        "github_commit": {us: git_head(), opponent: opponent_commit(theirs)},
         "tokens": {us: matchrt.ledger.total, opponent: 0},
         "score": {us: score_us, opponent: score_them},
         "log_files": {us: log_name, opponent: log_name},

@@ -2,12 +2,15 @@
 
 ``links_block`` names the four artifacts of one game (rulebook ch. 9.3.3);
 ``group_block`` is one team's signed declaration entry; ``league_block``
-records whether this report is armed as "counted". All three are built by
-the caller and threaded into the payload builders in :mod:`reports`.
+records whether this report is armed as "counted"; ``now_iso`` and
+``opponent_commit`` fill two per-row fields the driver used to leave empty.
+All of them are built by the caller and threaded into the payload builders
+in :mod:`reports`.
 """
 
 from __future__ import annotations
 
+import datetime
 from typing import Any
 
 from ...constants import AGENT_REPORT_ADDRESS
@@ -65,3 +68,37 @@ def group_block(**fields: Any) -> dict[str, Any]:
     block["hardware_spec_sha256"] = sha256_of(block["hardware_spec"])
     block["signature"] = "sha256:" + sha256_of(block)
     return block
+
+
+def now_iso() -> str:
+    """This instant, UTC, seconds precision - the report's timestamp form.
+
+    Every row we ever filed carried ``started_at``/``ended_at`` as the empty
+    string, because the driver had nothing to put there and nobody had looked.
+    An opponent's rows carry real instants (sharNamr, 2026-08-17), and a row
+    that cannot say when it was played is a row that cannot be reconciled
+    against theirs by anything but position.
+    """
+    return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+
+
+def opponent_commit(disclosure: dict[str, Any] | None) -> str:
+    """The opponent's git SHA, read out of the Step-0 record it just revealed.
+
+    Rule #53 asks both sides to record the commit each sub-game was played on,
+    and we filed ``"unknown"`` for the opponent in every row ever written -
+    while the answer sat inside the disclosure we had just audited. Every
+    conformant peer seals a Step-0 ``system_spec`` carrying its own
+    ``github_commit``, and the mutual audit hands us that record with its
+    nonce, so the value is not merely known but *proven*.
+
+    Derived rather than asked for, deliberately: sharNamr play their two roles
+    from two repositories and had changed both between sending us their interop
+    sheet and playing the match, so a hardcoded answer would have filed a
+    confidently wrong SHA in place of an honestly absent one.
+    """
+    for record in (disclosure or {}).get("records", []):
+        payload = record.get("payload", {})
+        if payload.get("type") == "system_spec" and payload.get("github_commit"):
+            return str(payload["github_commit"])
+    return "unknown"

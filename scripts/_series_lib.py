@@ -25,6 +25,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from fastmcp.exceptions import ToolError  # noqa: E402
 
 from police_thief.constants import ROLE_POLICE, ROLE_THIEF  # noqa: E402
+from police_thief.infra.email.report_blocks import now_iso, opponent_commit  # noqa: E402,F401
 from police_thief.infra.mcp_client import PeerUnreachableError  # noqa: E402
 from police_thief.infra.mcp_server import build_server  # noqa: E402
 from police_thief.services.inbound import InboundHandler  # noqa: E402

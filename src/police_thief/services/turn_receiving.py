@@ -33,7 +33,8 @@ def receive_turn(view: WorldView, message: TurnMessage, contract: GameContract) 
     """
     violation = protocol_violation(view, message, contract)
     if violation is not None:
-        view.result = {"type": "technical_loss", "violator": message.sender, "how": violation}
+        view.settle({"type": "technical_loss", "violator": message.sender,
+                     "how": violation}, message.step)
         view.note(f"protocol violation by {message.sender}: {violation}")
         return
     if message.step in view.opponent_commits:
@@ -69,7 +70,8 @@ def _apply_barrier(view: WorldView, message: TurnMessage) -> None:
         view.opponent_barriers += 1
         view.note(f"opponent declared a barrier at {cell}")
         if cell == view.position and view.role == "thief":
-            view.result = {"type": "capture", "winner": "police", "how": "trapping barrier"}
+            view.settle({"type": "capture", "winner": "police",
+                         "how": "trapping barrier"}, message.step)
 
 
 def _apply_capture_claim(
@@ -96,7 +98,8 @@ def _apply_capture_claim(
         view.belief.observe_region([claim], CLAIM_PIN_FACTOR)
         view.note(f"cop's claim at {claim} verified by its own scent - belief pinned")
     if tuple(message.capture_claim) == view.position:
-        view.result = {"type": "capture", "winner": "police", "how": "capture claim"}
+        view.settle({"type": "capture", "winner": "police",
+                     "how": "capture claim"}, message.step)
         view.note("caught - answering truthfully")
 
 
@@ -113,7 +116,11 @@ def _apply_claim_response(view: WorldView, message: TurnMessage, contract: GameC
         if isinstance(claim, list) and len(claim) == 2:
             view.final_claim = [int(claim[0]), int(claim[1])]
             view.final_claim_is_answer = tuple(view.final_claim) == tuple(view.position)
-        view.result = {"type": "capture", "winner": "police", "how": "capture claim"}
+        # OUR step, not the answering turn's: the capture happened when we
+        # claimed the cell, and we have not moved since. The thief settles the
+        # same event at the step our claim carried, so both land on one number.
+        view.settle({"type": "capture", "winner": "police",
+                     "how": "capture claim"}, view.step)
     elif isinstance(claim, list) and len(claim) == 2:
         # Negative evidence the reference throws away: that cell is ruled out.
         view.belief.exclude((int(claim[0]), int(claim[1])))
@@ -132,7 +139,7 @@ def _apply_win_claim(view: WorldView, message: TurnMessage, contract: GameContra
         return
     if message.win_claim.get("type") == "survival" and message.sender == "thief":
         if message.step >= contract.movement.survival_threshold:
-            view.result = {"type": "survival", "winner": "thief"}
+            view.settle({"type": "survival", "winner": "thief"}, message.step)
         else:
             view.note("premature survival claim ignored")
     elif (
@@ -141,5 +148,5 @@ def _apply_win_claim(view: WorldView, message: TurnMessage, contract: GameContra
         and view.role == "police"
         and view.result is None
     ):
-        view.result = {"type": "capture", "winner": "police", "how": "conceded"}
+        view.settle({"type": "capture", "winner": "police", "how": "conceded"}, view.step)
         view.note("the thief conceded the capture")

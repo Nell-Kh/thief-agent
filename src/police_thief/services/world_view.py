@@ -47,6 +47,9 @@ class WorldView:
     opponent_commits: dict[int, str] = field(default_factory=dict)
     claim_gaps: list[int] = field(default_factory=list)
     history: list[str] = field(default_factory=list)
+    #: The turn number on which the terminal condition occurred, in the
+    #: numbering of the side that CAUSED it - see :meth:`settle`.
+    terminal_step: int | None = None
 
     @classmethod
     def open(cls, role: str, contract: GameContract) -> WorldView:
@@ -67,6 +70,28 @@ class WorldView:
     def ended(self) -> bool:
         """Whether this peer considers the mini-game decided."""
         return self.result is not None
+
+    def settle(self, result: dict[str, Any], step: int) -> None:
+        """Record the outcome together with the turn that caused it.
+
+        ``step`` is always in the numbering of the side that CAUSED the ending -
+        the cop's turn for a capture, the thief's for a survival - so both peers
+        derive the same integer from the same event. That matters because
+        ``view.step`` counts only THIS peer's own moves and keeps counting after
+        the game is decided: the loser seals one more real turn to concede
+        (:mod:`services.concession`), so a report built from ``view.step`` files
+        the winner's number on one side and the loser's on the other. sharNamr
+        and this repository disagreed on exactly that in friendly-9 (2026-08-17),
+        each of us filing our own record count on the sub-games we lost, and
+        neither of us was wrong about our own logs - the field was underdefined.
+
+        Only the FIRST settlement is kept. Anything after it is post-terminal
+        bookkeeping, which is the whole class of thing this field exists to
+        exclude.
+        """
+        if self.result is None:
+            self.result = result
+            self.terminal_step = step
 
     def barriers_left(self, contract: GameContract) -> int:
         """Barriers the cop may still place."""

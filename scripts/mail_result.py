@@ -34,13 +34,14 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(ROOT / "src"))
 
+from _series_report import send_result  # noqa: E402
+
 from police_thief.constants import ROLE_POLICE  # noqa: E402
-from police_thief.infra.email.naming import result_file_name  # noqa: E402
-from police_thief.infra.email.sender import MODE_DRAFT, MODE_SEND, GmailSender  # noqa: E402
+from police_thief.infra.email.sender import MODE_DRAFT, MODE_SEND  # noqa: E402
 from police_thief.shared.config import ConfigManager  # noqa: E402
-from police_thief.shared.gatekeeper import Gatekeeper  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
@@ -69,20 +70,6 @@ def load_result(artifacts: Path) -> tuple[Path, dict]:
     return files[0], json.loads(files[0].read_text(encoding="utf-8"))
 
 
-def gmail_service():
-    """The authorized Gmail service, or a clear failure naming what is missing.
-
-    Raises:
-        SystemExit: when Appendix A's credentials are not in the working dir.
-    """
-    if not Path("credentials.json").exists():
-        raise SystemExit("credentials.json not found here - complete Appendix A setup "
-                         "(Google Cloud OAuth client) in this directory first")
-    from police_thief.infra.email.oauth import build_gmail_service, load_credentials
-
-    return build_gmail_service(load_credentials())
-
-
 def main() -> None:
     """Load the result, decide recipient and mode out loud, mail it, report status."""
     args = parse_args()
@@ -101,24 +88,7 @@ def main() -> None:
     if mode == MODE_SEND and not args.to and not league.get("counted"):
         print("NOTE: sending an UNCOUNTED result to the configured recipient - "
               "the league reads it as a friendly, which is what it is.")
-    limits = json.loads((ROOT / "config" / "rate_limits.json").read_text())["rate_limits"]
-    gmail = limits["services"]["gmail"]
-    sender = GmailSender(
-        gmail_service(), recipient=recipient, mode=mode,
-        gatekeeper=Gatekeeper(
-            requests_per_minute=int(gmail["requests_per_minute"]),
-            daily_quota=int(gmail["daily_quota"]),
-            queue_depth=int(gmail["queue_depth"]),
-            dos_max_per_window=int(gmail["dos_max_per_window"]),
-            dos_window_sec=float(gmail["dos_window_sec"]),
-        ),
-    )
-    status = sender.send_report(
-        subject=f"Police-Thief result {result.get('game_id')}",
-        attachment_name=result_file_name(str(result.get("game_id"))),
-        payload=result,
-    )
-    print(f"status   : {status}")
+    print(f"status   : {send_result(result, recipient=recipient, mode=mode)}")
 
 
 if __name__ == "__main__":

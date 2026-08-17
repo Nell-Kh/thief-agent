@@ -110,6 +110,14 @@ def main() -> None:
     ids = derive_game_ids(terms, us, args.opponent_group_id,
                           getattr(args, 'series_label', ''))
     print(f"game_id  = {ids[0]}\ngame_uid = {ids[1]}")
+    # The commit is already sealed into every Step-0 record and filed in every
+    # row - but it was never SHOWN to the operator, and on 2026-08-17 we played
+    # sharNamr on a working tree that had never had the step-rule fix applied,
+    # told them in writing that it had, and only found out when they diffed the
+    # field. The answer was in our own result file the whole time. One line at
+    # the top, before anything is negotiated, so "the fix is committed" and
+    # "the fix is running" stop being the same sentence.
+    print(f"commit   = {git_head()}   <- verify this is the code you meant to play")
     print(f"setting  = {terms['setting']!r} (a signed term - must match the opponent)")
 
     artifacts = Path(args.artifacts or ROOT / "results" / f"friendly_{ids[0]}")

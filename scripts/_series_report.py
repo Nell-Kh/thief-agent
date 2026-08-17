@@ -102,18 +102,102 @@ def build_sender(recipient: str, mode: str):
 
 
 def send_result(result: dict[str, Any], *, recipient: str, mode: str) -> str:
-    """Mail one result payload as a JSON attachment; return the sender's status."""
+    """Mail one result payload as a JSON attachment; return the sender's status.
+
+    Raises:
+        SystemExit: when Gmail refuses the DRAFT for want of scope. Our OAuth
+            client deliberately requests ``gmail.send`` and nothing else, so the
+            agent can send a report and cannot read a mailbox - but drafting
+            needs ``gmail.compose``, which is strictly broader. The "safe
+            rehearsal" every runbook reaches for first is therefore the one path
+            our own token cannot walk, and it surfaced as a raw 403 traceback
+            twice on 2026-08-17 before anyone read the scope. Naming it costs
+            eight lines and saves the same ten minutes every time.
+    """
     from police_thief.infra.email.naming import result_file_name
 
-    return build_sender(recipient, mode).send_report(
-        subject=f"Police-Thief result {result.get('game_id')}",
-        attachment_name=result_file_name(str(result.get("game_id"))),
-        payload=result,
-    )
+    try:
+        return build_sender(recipient, mode).send_report(
+            subject=f"Police-Thief result {result.get('game_id')}",
+            attachment_name=result_file_name(str(result.get("game_id"))),
+            payload=result,
+        )
+    except Exception as failure:
+        if mode != "draft" or "insufficient" not in str(failure).lower():
+            raise
+        raise SystemExit(
+            "Gmail refused the DRAFT: our OAuth client holds gmail.send only, and "
+            "drafting needs gmail.compose. This is the scope we chose on purpose - "
+            "it is why the agent cannot read your mail. Re-run with --send and an "
+            "explicit --to <your own address>, which reaches the same code path the "
+            "real report uses."
+        ) from failure
+
+
+def friendly_recipients(raw: str) -> list[str]:
+    """The addresses an UNCOUNTED series mails itself to - never a league one.
+
+    nis-yar1 (2026-08-17) asked that both teams deliver friendly results
+    automatically, so neither side can quietly decline to publish an unflattering
+    one. That is a good norm and costs nothing. What it does cost is the property
+    the manual-friendly design was built to protect: the driver's own send now
+    aims at an address typed on a command line, and ``rmisegal`` is a short word
+    to fat-finger at midnight.
+
+    So both league addresses are refused, and refused HERE - parsed at kickoff,
+    where the answer is free - rather than at the end of six settled sub-games
+    where the mistake is already in the lecturer's inbox and unrecoverable.
+
+    Raises:
+        SystemExit: when a league address appears among the friendly recipients.
+    """
+    from police_thief.constants import AGENT_REPORT_ADDRESS, LECTURER_ADDRESS
+
+    addresses = [entry.strip() for entry in raw.split(",") if entry.strip()]
+    bound = {AGENT_REPORT_ADDRESS.lower(), LECTURER_ADDRESS.lower()}
+    forbidden = sorted({a for a in addresses if a.lower() in bound})
+    if forbidden:
+        raise SystemExit(
+            f"REFUSING to arm friendly delivery to a league address: {forbidden}. "
+            "A friendly is a warm-up between two teams; ch. 9.3 addresses the "
+            "lecturer at the end of a LEGAL game only. Play it --counted, or mail "
+            "somebody else."
+        )
+    return addresses
+
+
+def _report_friendly(result: dict[str, Any], artifacts: Path,
+                     recipients: list[str], announce) -> None:
+    """Mail an uncounted series to the opposing team, or say how to do it by hand.
+
+    Deliberately NOT fatal, unlike the counted path directly below: rule #35
+    scores an unreported league series at zero, so that one dies rather than
+    exit successfully on a silent failure. A friendly carries no such penalty,
+    and killing the driver after six settled sub-games would destroy nothing
+    except the evening. A failure here therefore prints what broke, names the
+    command that finishes the job, and moves to the next address.
+    """
+    from police_thief.infra.email.sender import MODE_SEND
+
+    if not recipients:
+        announce("report   : not sent - uncounted series. Rule 9.3 addresses the "
+                 "lecturer at the end of a LEGAL game; a friendly is reported "
+                 f"between the two teams with:\n            "
+                 f"uv run python scripts/mail_result.py {artifacts} --to <them> --send")
+        return
+    for address in recipients:
+        try:
+            status = send_result(result, recipient=address, mode=MODE_SEND)
+        except Exception as failure:  # noqa: BLE001 - one bad address must not eat the rest
+            announce(f"report   : FAILED to mail the friendly to {address} ({failure!r})\n"
+                     f"            uv run python scripts/mail_result.py {artifacts} "
+                     f"--to {address} --send")
+            continue
+        announce(f"report   : friendly result mailed to {address} ({status})")
 
 
 def auto_report(result: dict[str, Any], artifacts: Path, recipient: str,
-                announce=print) -> None:
+                announce=print, friendly_to: tuple[str, ...] | list[str] = ()) -> None:
     """Report a COUNTED series to the league automatically (ch. 9.3).
 
     A friendly, or a counted claim that did not arm, returns without sending -
@@ -128,10 +212,7 @@ def auto_report(result: dict[str, Any], artifacts: Path, recipient: str,
 
     league = result.get("league", {})
     if not league.get("counted"):
-        announce("report   : not sent - uncounted series. Rule 9.3 addresses the "
-                 "lecturer at the end of a LEGAL game; a friendly is reported "
-                 f"between the two teams with:\n            "
-                 f"uv run python scripts/mail_result.py {artifacts} --to <them>")
+        _report_friendly(result, artifacts, list(friendly_to), announce)
         return
     announce(f"report   : sending automatically to {recipient} (rule 9.3 - no human step)")
     try:

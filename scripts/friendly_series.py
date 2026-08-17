@@ -53,7 +53,11 @@ from _series_lib import (  # noqa: E402
     other_role,
     start_server,
 )
-from _series_report import auto_report, reporting_blockers  # noqa: E402
+from _series_report import (  # noqa: E402
+    auto_report,
+    friendly_recipients,
+    reporting_blockers,
+)
 from _series_subgame import (  # noqa: E402
     build_handler,
     load_config,
@@ -96,6 +100,7 @@ def main() -> None:
     if us == args.opponent_group_id:
         raise SystemExit("refusing to play: our group_id equals --opponent-group-id")
     recipient = str(config.private_value("email", "recipient", ""))
+    friendly_to = friendly_recipients(args.friendly_report_to)
     blockers = counted_series_blockers(
         recipient, str(config.private_value("email", "mode", ""))
     ) + reporting_blockers(args.counted)
@@ -205,7 +210,7 @@ def main() -> None:
     # returns from here without sending, which is the safety property the old
     # fully-manual design existed to protect - kept exactly where it costs
     # nothing, and dropped exactly where the rulebook forbids it.
-    auto_report(result, artifacts, recipient)
+    auto_report(result, artifacts, recipient, friendly_to=friendly_to)
     print(f"\nall {args.rounds} sub-games settled. Artifacts under {artifacts}")
 
 

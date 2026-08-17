@@ -52,6 +52,10 @@ def parse_args() -> argparse.Namespace:
                              "the same opponent, agreed with them in writing (e.g. "
                              "'counted-1'). Folded into both game_id and game_uid: without "
                              "it the kit's derivation gives every series the same identity")
+    parser.add_argument("--friendly-report-to", default="",
+                        help="comma-separated addresses an UNCOUNTED series mails "
+                             "itself to when it settles; the league addresses are "
+                             "refused here, before the first sub-game is played")
     parser.add_argument("--timezone", default="Asia/Jerusalem")
     parser.add_argument("--counted", action="store_true",
                         help="claim league credit; only arms when addressed to the "

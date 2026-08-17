@@ -106,7 +106,8 @@ def main() -> None:
               "config, then re-run."
         )
     terms = terms_from_contract(config.contract)
-    ids = derive_game_ids(terms, us, args.opponent_group_id)
+    ids = derive_game_ids(terms, us, args.opponent_group_id,
+                          getattr(args, 'series_label', ''))
     print(f"game_id  = {ids[0]}\ngame_uid = {ids[1]}")
     print(f"setting  = {terms['setting']!r} (a signed term - must match the opponent)")
 
@@ -167,7 +168,14 @@ def main() -> None:
         game_uid=ids[1], game_id=ids[0], links=links, timezone=args.timezone,
         group_ids=[us, args.opponent_group_id], sub_games=rows,
         tie_score=config.contract.scoring.tie_score,
-        games_played={us: args.games_played, args.opponent_group_id: None},
+        games_played={
+            # Ours, inclusive: a COUNTED series advances the pairwise counter,
+            # a friendly does not (rulebook: warm-up games are not counted).
+            us: args.games_played + (1 if args.counted else 0),
+            # Theirs, as THEY declared it on the wire - never a number we made
+            # up. Rule #38 disqualifies whoever filed the false declaration.
+            args.opponent_group_id: handler_box.opponent_games_played,
+        },
         first_meeting=args.games_played == 0, counted=args.counted, recipient=recipient,
     )
     validate_result_payload(result, tie_score=config.contract.scoring.tie_score)

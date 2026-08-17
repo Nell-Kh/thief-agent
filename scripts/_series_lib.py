@@ -88,6 +88,11 @@ class SwappableHandler:
         """Start with no handler bound; the first sub-game installs one."""
         self.current: InboundHandler | None = None
         self.pending: InboundHandler | None = None
+        #: The opponent's OWN counted-game declaration, read off its greeting.
+        #: Rule #38 disqualifies the group that made a false declaration, so a
+        #: number we invent for them is a declaration we are not entitled to
+        #: make; this is theirs, from a message they signed.
+        self.opponent_games_played: int | None = None
 
     def _active(self) -> InboundHandler:
         """The bound handler, or a clean retryable refusal while none is.

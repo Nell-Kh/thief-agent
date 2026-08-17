@@ -42,6 +42,11 @@ def parse_args() -> argparse.Namespace:
                              "not started yet (the two-terminal gap)")
     parser.add_argument("--games-played", type=int, default=0,
                         help="counted games already played against this opponent (rule 37)")
+    parser.add_argument("--series-label", default="",
+                        help="a label distinguishing THIS series from every other against "
+                             "the same opponent, agreed with them in writing (e.g. "
+                             "'counted-1'). Folded into both game_id and game_uid: without "
+                             "it the kit's derivation gives every series the same identity")
     parser.add_argument("--timezone", default="Asia/Jerusalem")
     parser.add_argument("--counted", action="store_true",
                         help="claim league credit; only arms when addressed to the "

@@ -11,10 +11,10 @@ vectors are vendored into ``tests/vectors`` to prove it on every test run.
 from __future__ import annotations
 
 import hashlib
-import uuid
 from typing import Any
 
 from .config_io import canonical_json, sha256_of
+from .identity import derive_game_ids  # noqa: F401  (re-exported: the kit's own home for it)
 from .interop_profile import DEFAULT, InteropProfile
 from .schema import GameContract
 
@@ -109,20 +109,6 @@ def sign_terms(terms: dict[str, Any], nonce: str) -> str:
     """
     material = f"{canonical_json(terms)}|{nonce}"
     return hashlib.sha256(material.encode("utf-8")).hexdigest()
-
-
-def derive_game_ids(terms: dict[str, Any], group_a: str, group_b: str) -> tuple[str, str]:
-    """The shared ``(game_id, game_uid)`` - identical on both peers.
-
-    The pair is SORTED: neither side names itself first, so both derive the
-    same id with no round-trip. The uid is a UUID over the first 16 bytes of
-    ``SHA256(canonical(terms) + "|" + "|".join(sorted_pair))``.
-    """
-    pair = sorted([group_a, group_b])
-    game_id = f"{pair[0]}-vs-{pair[1]}"
-    seed = f"{canonical_json(terms)}|{'|'.join(pair)}"
-    game_uid = str(uuid.UUID(bytes=hashlib.sha256(seed.encode("utf-8")).digest()[:16]))
-    return game_id, game_uid
 
 
 def scent_model_lock() -> str:

@@ -19,23 +19,22 @@ from _series_lib import (
     SwappableHandler,
     git_head,
     negotiate_patiently,
-    now_iso,
-    opponent_commit,  # noqa: E402
     other_role,
     play_networked,
     score_for,
     wait_for,
+)
+from _series_row import (  # noqa: E402
+    keep_opponent_disclosure,
+    now_iso,
+    score_row,
+    write_sub_game_files,
 )
 
 sys.path.insert(0, str(ROOT / "src"))
 
 from police_thief.domain.audit import audit_disclosure  # noqa: E402
 from police_thief.domain.negotiation import build_terms, model_advisories  # noqa: E402
-from police_thief.infra.email.naming import (  # noqa: E402
-    config_file_name,
-    write_lifecycle_file,
-)
-from police_thief.infra.email.reports import config_payload, log_payload  # noqa: E402
 from police_thief.infra.http_transport import McpHttpTransport  # noqa: E402
 from police_thief.infra.mcp_client import PeerClient  # noqa: E402
 from police_thief.services.inbound import InboundHandler  # noqa: E402
@@ -163,8 +162,9 @@ def _play(n: int, role: str, args, ids: tuple[str, str], us: str, handler: Inbou
         raise RuntimeError(f"sub-game {n}: opponent declared group_id {their_group!r}, "
                            f"expected {args.opponent_group_id!r} - check --opponent-group-id")
     print(f"  negotiated OK with {their_group} (role {handler.opponent_terms.get('role')})")
+    handler_box.opponent_games_played = handler.opponent_games_played
     for note in model_advisories(handler.opponent_terms, negotiate_extras(role, n)):
-        print(f"  note: {note}")
+        print(f"  note: {note}")  # a difference nobody is told about is one nobody fixes
 
     started_at = now_iso()
     play_networked(role, matchrt, client, handler)
@@ -183,48 +183,26 @@ def _play(n: int, role: str, args, ids: tuple[str, str], us: str, handler: Inbou
     # because a successful send left no trace on either log. The reply is the
     # evidence: theirs, in their words, next to the record count we sent.
     print(f"  sent our disclosure ({len(ours['records'])} records, "
-          f"sender={ours['sender']}) -> peer replied {ack!r}")
+          f"sender={ours['sender']}) -> peer replied {ack!r}")  # noqa: E501
     theirs = wait_for(lambda: handler.audit, NEGOTIATE_WAIT_TIMEOUT,
                       f"opponent's audit disclosure for sub-game {n}")
     report = audit_disclosure(theirs, contract, **matchrt.audit_evidence())
     print(f"  our audit of their disclosure: {report.verdict}"
           + ("" if report.passed else f" - {report.violations}"))
-    # Keep what we audited. The opponent's revealed records are the only place
-    # THEIR positions exist on our side - a lost series with no opponent trace
-    # can be replayed but never explained (sharNamr, 0-6, 2026-08-17).
-    write_lifecycle_file(artifacts, f"opponent_{game_id}_g{n:02d}.json",
-                         {"game_id": game_id, "sub_game_number": n,
-                          "audit_verdict": report.verdict, "disclosure": theirs})
-
-    if not report.passed:
-        outcome_type, score_us, score_them = "tamper_forfeit", 0, 0
-    else:
-        score_us = score_for(contract, outcome_type, role)
-        score_them = score_for(contract, outcome_type, expect_role)
-    zeroed = outcome_type in ("timeout", "technical_loss", "tamper_forfeit")
-    tie = (not zeroed) and score_us == score_them
-    winner = None if zeroed or tie else (us if score_us > score_them else args.opponent_group_id)
-
-    opponent = args.opponent_group_id
-    log_name = f"log_{game_id}_g{n:02d}.json"
-    row = {
-        "sub_game_number": n, "roles": {us: role, opponent: expect_role},
-        "started_at": started_at, "ended_at": now_iso(),
-        "result": outcome_type, "winner_group": winner, "tie": tie,
-        "steps": matchrt.view.step,
-        "github_commit": {us: git_head(), opponent: opponent_commit(theirs)},
-        "tokens": {us: matchrt.ledger.total, opponent: 0},
-        "score": {us: score_us, opponent: score_them},
-        "log_files": {us: log_name, opponent: log_name},
-        "audit": {"log_verified": report.passed, "tampered": not report.passed},
-    }
-
-    write_lifecycle_file(artifacts, config_file_name(game_id, n),
-                         config_payload(game_uid, game_id, n, our_terms, links, recipient,
-                                        counted=args.counted))
-    summary = {"sub_game_number": n, "role": role, "result": outcome_type,
-               "steps": matchrt.view.step, "opponent_group_id": their_group}
-    write_lifecycle_file(artifacts, log_name,
-                         log_payload(game_uid, game_id, n, links, summary,
-                                     matchrt.book.records, recipient, counted=args.counted))
+    keep_opponent_disclosure(artifacts, game_id, n, report.verdict, theirs)
+    row = score_row(
+        n=n, role=role, expect_role=expect_role, us=us, opponent=args.opponent_group_id,
+        outcome_type=outcome_type, passed=report.passed, steps=matchrt.view.step,
+        tokens=matchrt.ledger.total, our_commit=git_head(), their_disclosure=theirs,
+        started_at=started_at, game_id=game_id,
+        scores=(score_for(contract, outcome_type, role),
+                score_for(contract, outcome_type, expect_role)),
+    )
+    write_sub_game_files(
+        artifacts=artifacts, game_uid=game_uid, game_id=game_id, n=n, terms=our_terms,
+        links=links, recipient=recipient, counted=args.counted,
+        summary={"sub_game_number": n, "role": role, "result": outcome_type,
+                 "steps": matchrt.view.step, "opponent_group_id": their_group},
+        records=matchrt.book.records,
+    )
     return row

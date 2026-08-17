@@ -39,6 +39,35 @@ def test_a_series_label_makes_two_series_distinguishable() -> None:
     assert len({plain_id, one_id, two_id}) == 3
 
 
+def test_the_unlabelled_uid_is_reproducible_from_its_own_documented_rule() -> None:
+    """The branch a written spec loses, pinned so prose cannot drift from code.
+
+    The two seed tails are different strings for the same pair -
+    ``"sharNamr|yanell11"`` against ``"sharNamr-vs-yanell11"`` - so quoting only
+    the labelled formula and adding "and the unlabelled case is unchanged"
+    describes an implementation nobody can write. sharNamr took our sentence
+    literally, derived ``a971be34-…`` where every shipped artifact carries
+    ``9b80122e-…``, and told us before implementing it (2026-08-17).
+
+    So both branches are pinned here, each recomputed from primitives::
+
+        no label  -> UUID(SHA256(canonical(terms) + "|" + "|".join(sorted(pair)))[:16])
+        label set -> UUID(SHA256(canonical(terms) + "|" + game_id)[:16])
+    """
+    terms = terms_from_contract(ConfigManager.load(ROLE_POLICE).contract)
+    game_id, game_uid = derive_game_ids(terms, "yanell11", "sharNamr")
+    pair_seed = f"{canonical_json(terms)}|{'|'.join(sorted(['yanell11', 'sharNamr']))}"
+    expected = str(uuid.UUID(bytes=hashlib.sha256(pair_seed.encode("utf-8")).digest()[:16]))
+    assert game_uid == expected
+
+    # ...and the labelled formula applied to an UNLABELLED id is a DIFFERENT
+    # uid. This is the counter-example itself, held so nobody "simplifies" the
+    # two branches into one and silently renames every artifact ever written.
+    id_seed = f"{canonical_json(terms)}|{game_id}"
+    wrong = str(uuid.UUID(bytes=hashlib.sha256(id_seed.encode("utf-8")).digest()[:16]))
+    assert wrong != game_uid
+
+
 def test_a_labelled_uid_is_reproducible_from_the_documented_rule() -> None:
     """An opponent must be able to derive the identical pair from the docstring.
 

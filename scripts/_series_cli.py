@@ -37,6 +37,11 @@ def parse_args() -> argparse.Namespace:
                         help="extra seconds a turn or audit delivery keeps retrying a "
                              "tunnel that has dropped; 0 restores the contract's bare "
                              "three-tries budget")
+    parser.add_argument("--turn-wait", type=float, default=0.0,
+                        help="seconds to allow the opponent for ONE turn, when they "
+                             "declare a longer deadline than our own contract's "
+                             "[network].turn_timeout_seconds. Never lowers it: a peer "
+                             "is entitled to the deadline both sides signed")
     parser.add_argument("--wait", type=float, default=OPENING_WAIT_SECONDS,
                         help="seconds to keep re-offering terms to an opponent that has "
                              "not started yet (the two-terminal gap)")

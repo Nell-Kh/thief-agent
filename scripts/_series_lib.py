@@ -34,7 +34,19 @@ from police_thief.services.turn_reorder import HandshakeRejectedError  # noqa: E
 
 #: Hard stop on a sub-game's turn exchange, so a wedged peer can never hang us.
 SAFETY_CAP = 200
-TURN_WAIT_TIMEOUT = 60.0
+
+#: Fallback wait for an opponent's turn, used only when the config declares no
+#: ``turn_timeout_seconds``. **Never hardcode this shorter than the deadline we
+#: ourselves declare.** It was 60.0, while ``config/police/game.toml`` declares
+#: ``turn_timeout_seconds = 180`` - so our driver abandoned a sub-game after 60
+#: seconds against a peer that was still inside the budget BOTH sides had
+#: signed. nis-yar1 (2026-08-17) stated a 180-second deadline in writing, their
+#: thief did not deliver its opening turn inside 60, and we scored a technical
+#: loss against an opponent doing nothing wrong - then spent the rest of the
+#: series refusing their greetings, because they were still playing sub-game 1
+#: while we had moved to 2. A timeout shorter than the declared one does not
+#: protect us; it manufactures the failure it is meant to survive.
+TURN_WAIT_TIMEOUT = 180.0
 NEGOTIATE_WAIT_TIMEOUT = 180.0
 POLL_INTERVAL = 0.2
 
@@ -289,8 +301,16 @@ def wait_for(predicate: Callable[[], Any], timeout: float, what: str) -> Any:
     raise TimeoutError(f"timed out after {timeout}s waiting for {what}")
 
 
-def play_networked(role: str, matchrt: MatchRuntime, client, handler: InboundHandler) -> None:
-    """Alternate turns with a real remote opponent - the thief always moves first."""
+def play_networked(role: str, matchrt: MatchRuntime, client, handler: InboundHandler,
+                   turn_wait: float = TURN_WAIT_TIMEOUT) -> None:
+    """Alternate turns with a real remote opponent - the thief always moves first.
+
+    ``turn_wait`` is how long we allow the opponent for one turn. It belongs to
+    the CONTRACT, not to this file: a peer is entitled to every second of the
+    deadline both sides declared, and a driver that gives up sooner turns a
+    compliant opponent into a technical loss and then desynchronises the whole
+    series behind it.
+    """
     thief_is_us = role == ROLE_THIEF
     for _ in range(SAFETY_CAP):
         if matchrt.ended:
@@ -299,7 +319,7 @@ def play_networked(role: str, matchrt: MatchRuntime, client, handler: InboundHan
             client.send_turn(matchrt.play_turn().to_wire())
             if matchrt.ended:
                 return
-        incoming = wait_for(handler.next_turn, TURN_WAIT_TIMEOUT,
+        incoming = wait_for(handler.next_turn, turn_wait,
                             f"opponent's turn (sub-game {matchrt.book.sub_game}, "
                             f"step {handler.next_step})")
         reply = matchrt.on_turn(incoming)

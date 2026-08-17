@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _series_lib import (
     NEGOTIATE_WAIT_TIMEOUT,
     ROOT,
+    TURN_WAIT_TIMEOUT,
     SwappableHandler,
     git_head,
     negotiate_patiently,
@@ -47,6 +48,20 @@ def load_config(role: str, args) -> ConfigManager:
     """Load ``role``'s configuration, honouring an explicit ``--config-dir``."""
     return ConfigManager.load(role, args.config_dir) if args.config_dir \
         else ConfigManager.load(role)
+
+
+def turn_wait_for(config: ConfigManager, args) -> float:
+    """How long the opponent gets for one turn, from the contract we both signed.
+
+    ``[network].turn_timeout_seconds`` is the rulebook's own field and ours reads
+    180. The driver used to wait 60 regardless, which is not a safety margin but
+    a contradiction: we abandoned peers who were inside the deadline we had
+    published to them. ``--turn-wait`` overrides it upward when an opponent
+    declares a longer one than we do.
+    """
+    declared = float(config.private_value("network", "turn_timeout_seconds",
+                                          TURN_WAIT_TIMEOUT))
+    return max(declared, float(getattr(args, "turn_wait", 0.0) or 0.0))
 
 
 def peer_url_for(args, our_role: str) -> str:
@@ -167,7 +182,9 @@ def _play(n: int, role: str, args, ids: tuple[str, str], us: str, handler: Inbou
         print(f"  note: {note}")  # a difference nobody is told about is one nobody fixes
 
     started_at = now_iso()
-    play_networked(role, matchrt, client, handler)
+    turn_wait = turn_wait_for(config, args)
+    print(f"  allowing the opponent {turn_wait:.0f}s per turn (contract deadline)")
+    play_networked(role, matchrt, client, handler, turn_wait=turn_wait)
     outcome_type = (matchrt.result or {}).get("type", "undecided")
     print(f"  settled locally: {outcome_type} after {matchrt.steps} steps"
           f" (our own move count: {matchrt.view.step})")

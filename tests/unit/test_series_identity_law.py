@@ -20,6 +20,14 @@ It reads whatever real artifacts are on disk rather than constructing any, so
 it is worth exactly as much as the series we have actually played - and it
 costs nothing when there are none.
 
+**Three tests, always, whatever is on disk.** These were parametrized per
+series at first, which made the COLLECTED SUITE SIZE a function of one
+machine's ``results/`` folder: 935 here, 978 on the laptop that had actually
+played the matches, and ``test_readme_integrity`` correctly refused both. A law
+whose test count depends on local data cannot coexist with a law that pins the
+test count, and of the two the pinned count is the one worth keeping. So each
+test loops internally and reports every series it found in one message.
+
 Scoped by ``game_id`` rather than by directory, because ``results/`` itself
 holds several series flat in one folder: grouping by directory would report two
 unrelated series as one forked identity, which is a false alarm that teaches
@@ -37,8 +45,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any
-
-import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 RESULTS = REPO_ROOT / "results"
@@ -83,35 +89,29 @@ def _identities(directory: Path, game_id: str) -> dict[str, tuple[str, str]]:
     return identities
 
 
-@pytest.mark.parametrize("directory,game_id", _series(), ids=lambda v: str(v))
-def test_every_artifact_in_a_series_agrees_on_the_series_identity(
-    directory: Path, game_id: str
-) -> None:
+def test_every_artifact_in_a_series_agrees_on_the_series_identity() -> None:
     """One series, one ``game_id``, one ``game_uid`` - across all four families."""
-    identities = _identities(directory, game_id)
-    if not identities:
-        pytest.skip(f"no lifecycle artifacts for {game_id}")
-    distinct = set(identities.values())
-    assert len(distinct) == 1, (
-        f"{game_id} in {directory} holds {len(distinct)} different identities: "
-        + "; ".join(f"{name} -> {identity}" for name, identity in sorted(identities.items()))
-    )
+    forked = []
+    for directory, game_id in _series():
+        identities = _identities(directory, game_id)
+        if len(set(identities.values())) > 1:
+            forked.append(f"{game_id} in {directory}: " + "; ".join(
+                f"{name} -> {identity}" for name, identity in sorted(identities.items())))
+    assert not forked, "series whose artifacts disagree about their own identity:\n" \
+                       + "\n".join(forked)
 
 
-@pytest.mark.parametrize("directory,game_id", _series(), ids=lambda v: str(v))
-def test_every_recorded_uid_is_a_uuid_and_not_a_bare_digest(
-    directory: Path, game_id: str
-) -> None:
+def test_every_recorded_uid_is_a_uuid_and_not_a_bare_digest() -> None:
     """A 32-hex digest in the uid field is the exact way sharNamr's Cop log drifted."""
-    for name, (_id, uid) in _identities(directory, game_id).items():
-        assert len(uid) == 36 and uid.count("-") == 4, (
-            f"{directory / name} records game_uid {uid!r}, which is not a UUID - "
-            f"a truncated config hash reads as an identity until someone compares two files"
-        )
+    bare = [f"{directory / name} records game_uid {uid!r}"
+            for directory, game_id in _series()
+            for name, (_id, uid) in _identities(directory, game_id).items()
+            if not (len(uid) == 36 and uid.count("-") == 4)]
+    assert not bare, ("a truncated config hash reads as an identity until someone "
+                      "compares two files:\n" + "\n".join(bare))
 
 
-@pytest.mark.parametrize("directory,game_id", _series(), ids=lambda v: str(v))
-def test_every_log_a_report_points_at_actually_exists(directory: Path, game_id: str) -> None:
+def test_every_log_a_report_points_at_actually_exists() -> None:
     """The failure sharNamr found in their own filed reports, checked against ours.
 
     Their ``result_G008.json`` named ``log_G008_g01.json`` in ``log_files`` while
@@ -120,16 +120,16 @@ def test_every_log_a_report_points_at_actually_exists(directory: Path, game_id: 
     which under a rulebook that scores audit trails is indistinguishable from
     having no evidence at all. Cheap to check, impossible to notice by eye.
     """
-    result = _read(directory / f"result_{game_id}.json")
-    if not isinstance(result, dict):
-        pytest.skip(f"no result file for {game_id}")
-    missing = [
-        name
-        for row in result.get("sub_games", [])
-        for name in (row.get("log_files") or {}).values()
-        if name and not (directory / str(name)).exists()
-    ]
-    assert not missing, (
-        f"result_{game_id}.json points at log files that are not on disk: "
-        f"{sorted(set(missing))} - an auditor following log_files finds nothing"
-    )
+    missing = []
+    for directory, game_id in _series():
+        result = _read(directory / f"result_{game_id}.json")
+        if not isinstance(result, dict):
+            continue
+        gone = sorted({str(name)
+                       for row in result.get("sub_games", [])
+                       for name in (row.get("log_files") or {}).values()
+                       if name and not (directory / str(name)).exists()})
+        if gone:
+            missing.append(f"result_{game_id}.json -> {gone}")
+    assert not missing, ("reports pointing at log files that are not on disk - an "
+                         "auditor following log_files finds nothing:\n" + "\n".join(missing))

@@ -55,7 +55,11 @@ def test_the_technical_loss_row_is_shaped_like_a_played_row() -> None:
     assert row["winner_group"] is None and row["tie"] is False
     assert row["roles"] == {"yanell11": "police", "rivals": "thief"}  # complementary
     assert row["github_commit"] == {"yanell11": "abc123", "rivals": "unknown"}
-    assert row["log_files"]["yanell11"] == "log_yanell11-vs-rivals_g03.json"
+    # EMPTY, not a plausible name. A sub-game that never played writes no log,
+    # and a report that names one sends an auditor to a file that does not
+    # exist - which reads like withheld evidence rather than a network failure.
+    # Three rows of our own filed najamjad series did exactly that.
+    assert row["log_files"] == {}
     assert row["audit"] == {"log_verified": False, "tampered": False,
                             "reason": "PeerUnreachableError: opponent silent"}
 

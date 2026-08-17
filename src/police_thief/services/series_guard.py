@@ -84,7 +84,6 @@ def technical_loss_row(
     network failure is not a forgery, and ``log_verified`` is false because no
     disclosure was ever audited.
     """
-    log_name = f"log_{game_id}_g{sub_game_number:02d}.json"
     return {
         "sub_game_number": sub_game_number,
         "roles": {us: role, opponent: expect_role},
@@ -97,7 +96,14 @@ def technical_loss_row(
         "github_commit": {us: github_commit, opponent: "unknown"},
         "tokens": {us: 0, opponent: 0},
         "score": {us: 0, opponent: 0},
-        "log_files": {us: log_name, opponent: log_name},
+        # EMPTY, deliberately. This row used to name log_<game_id>_gNN.json for
+        # both sides - a file nothing ever writes, because the sub-game never
+        # played. Our own filed najamjad series points at three such logs, and
+        # an auditor following the link finds nothing, which under a rulebook
+        # that scores audit trails reads exactly like evidence withheld.
+        # sharNamr found the same shape in two of THEIR filed reports and told
+        # us to look; the law they prompted found ours.
+        "log_files": {},
         "audit": {"log_verified": False, "tampered": False, "reason": reason},
     }
 

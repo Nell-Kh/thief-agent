@@ -39,8 +39,20 @@ class FakeCredentials:
         cls.loaded_from = (path, scopes)
         return cls._next
 
+    #: Set by a test to make :meth:`refresh` fail the way a revoked token does.
+    refresh_raises: bool = False
+
     def refresh(self, request: object) -> None:
-        """Mark the credential refreshed and valid."""
+        """Mark the credential refreshed and valid, or fail like a revoked token.
+
+        Raises:
+            RefreshError: when ``refresh_raises`` is set, mirroring Google's
+                ``invalid_grant`` for an expired or revoked refresh token.
+        """
+        if self.refresh_raises:
+            from google.auth.exceptions import RefreshError
+
+            raise RefreshError("invalid_grant: Token has been expired or revoked.")
         self.refreshed = True
         self.valid = True
 
@@ -56,6 +68,12 @@ def google_doubles(monkeypatch: pytest.MonkeyPatch) -> type[FakeCredentials]:
     creds_mod.Credentials = FakeCredentials
     request_mod = types.ModuleType("google.auth.transport.requests")
     request_mod.Request = object
+    errors_mod = types.ModuleType("google.auth.exceptions")
+
+    class RefreshError(Exception):
+        """Stand-in for Google's refresh failure."""
+
+    errors_mod.RefreshError = RefreshError
     flow_mod = types.ModuleType("google_auth_oauthlib.flow")
 
     class FakeFlow:
@@ -71,6 +89,7 @@ def google_doubles(monkeypatch: pytest.MonkeyPatch) -> type[FakeCredentials]:
             return FakeCredentials(valid=True)
 
     flow_mod.InstalledAppFlow = FakeFlow
+    monkeypatch.setitem(sys.modules, "google.auth.exceptions", errors_mod)
     monkeypatch.setitem(sys.modules, "google.oauth2.credentials", creds_mod)
     monkeypatch.setitem(sys.modules, "google.auth.transport.requests", request_mod)
     monkeypatch.setitem(sys.modules, "google_auth_oauthlib.flow", flow_mod)
@@ -97,6 +116,44 @@ def test_an_expired_token_is_refreshed_and_rewritten(
     creds = load_credentials(tmp_path / "credentials.json", token)
     assert creds.refreshed
     assert token.read_text(encoding="utf-8") == '{"token": "fake"}'
+
+
+def test_a_revoked_refresh_token_re_authorizes_instead_of_aborting(
+    google_doubles: type[FakeCredentials], tmp_path: Path
+) -> None:
+    """The failure that killed a report on 2026-08-17, held as a test.
+
+    Google expires an unused refresh token, and revokes it after seven days
+    while the Cloud project is in testing mode. The raw ``RefreshError:
+    invalid_grant`` propagated out of three libraries and aborted the send.
+    A revoked token is not an error condition - it is a token to mint again -
+    and rule #35 punishes a missing report as heavily as a false one.
+    """
+    secrets_file = tmp_path / "credentials.json"
+    secrets_file.write_text("{}", encoding="utf-8")
+    token = tmp_path / "token.json"
+    token.write_text("revoked", encoding="utf-8")
+    stale = FakeCredentials(valid=False, expired=True, refresh_token="r")
+    stale.refresh_raises = True
+    google_doubles._next = stale
+
+    creds = load_credentials(secrets_file, token)
+
+    assert creds is not stale and creds.valid, "a revoked token must be re-minted"
+    assert token.read_text(encoding="utf-8") == '{"token": "fake"}'
+
+
+def test_a_revoked_token_with_no_secret_file_still_says_what_to_do(
+    google_doubles: type[FakeCredentials], tmp_path: Path
+) -> None:
+    """Re-authorizing needs the Cloud Console file; say so instead of RefreshError."""
+    token = tmp_path / "token.json"
+    token.write_text("revoked", encoding="utf-8")
+    stale = FakeCredentials(valid=False, expired=True, refresh_token="r")
+    stale.refresh_raises = True
+    google_doubles._next = stale
+    with pytest.raises(CredentialsMissingError, match="Cloud Console"):
+        load_credentials(tmp_path / "nope.json", token)
 
 
 def test_first_run_mints_the_token_via_the_consent_flow(

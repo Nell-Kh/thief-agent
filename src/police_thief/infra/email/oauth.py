@@ -33,6 +33,15 @@ def load_credentials(
     token), and only fall back to the one-time browser consent flow when
     no token has ever been minted.
 
+    A refresh that FAILS falls back to the consent flow rather than
+    propagating. Google expires an unused refresh token (and revokes it
+    outright when the project is in testing mode, after seven days), and the
+    raw failure is ``RefreshError: invalid_grant`` from three libraries deep -
+    which is what it did on 2026-08-17, aborting a report. A revoked token is
+    not an error condition, it is simply a token that must be minted again;
+    rule #35 punishes a missing report as heavily as a false one, so the one
+    thing this function must never do is give up while a browser is available.
+
     Raises:
         CredentialsMissingError: if the consent flow is needed but the
             Cloud Console secret file is not present.
@@ -46,11 +55,27 @@ def load_credentials(
         credentials = Credentials.from_authorized_user_file(str(token_file), [GMAIL_SEND_SCOPE])
     if credentials and credentials.valid:
         return credentials
-    if credentials and credentials.expired and credentials.refresh_token:
-        credentials.refresh(Request())
-    else:
-        credentials = _run_consent_flow(credentials_path)
+    credentials = _refreshed(credentials, Request) or _run_consent_flow(credentials_path)
     token_file.write_text(credentials.to_json(), encoding="utf-8")
+    return credentials
+
+
+def _refreshed(credentials: Any, request_class: Any) -> Any:
+    """The credential renewed via its refresh token, or None if that cannot work.
+
+    None means "mint a new one": no token on disk, no refresh token in it, or
+    a refresh token the server no longer honours. Only the last case is worth
+    saying out loud, because it looks like a bug and is not.
+    """
+    if not (credentials and credentials.expired and credentials.refresh_token):
+        return None
+    from google.auth.exceptions import RefreshError
+
+    try:
+        credentials.refresh(request_class())
+    except RefreshError as error:
+        print(f"stored token rejected ({error}); re-authorizing in the browser")
+        return None
     return credentials
 
 

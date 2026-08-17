@@ -104,6 +104,18 @@ class MatchRuntime(MatchReporting):
         """The result this peer will claim at the audit."""
         return self.view.result
 
+    @property
+    def steps(self) -> int:
+        """The sub-game's length: the turn the terminal condition occurred on.
+
+        NOT ``view.step``, which counts only our own moves and keeps counting
+        through the concession we seal after losing - so two honest peers file
+        two different lengths for one game. See :meth:`WorldView.settle`. A
+        game that never settled (timeout) has no terminal turn and falls back
+        to our own count, which is all either side has.
+        """
+        return self.view.step if self.view.terminal_step is None else self.view.terminal_step
+
     def play_turn(self) -> TurnMessage:
         """Compose and locally apply this peer's turn; caller sends the message."""
         message = take_turn(
@@ -120,7 +132,7 @@ class MatchRuntime(MatchReporting):
             and self.view.step >= self.contract.movement.survival_threshold
             and self.view.result is None
         ):
-            self.view.result = {"type": "survival", "winner": "thief"}
+            self.view.settle({"type": "survival", "winner": "thief"}, self.view.step)
         return message
 
     def on_turn(self, message: TurnMessage) -> TurnMessage | None:
@@ -140,7 +152,8 @@ class MatchRuntime(MatchReporting):
         if self.view.role != "thief" or self._conceded:
             return None
         if self.view.result is None and is_trapped(self.view.board, self.view.position):
-            self.view.result = {"type": "capture", "winner": "police", "how": "boxed in (rule 47)"}
+            self.view.settle({"type": "capture", "winner": "police",
+                              "how": "boxed in (rule 47)"}, message.step)
             self.view.note("every exit is a barrier - conceding the rule-47 capture")
         if (self.view.result or {}).get("winner") == "police":
             self._conceded = True

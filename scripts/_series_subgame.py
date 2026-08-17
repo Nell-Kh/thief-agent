@@ -169,7 +169,8 @@ def _play(n: int, role: str, args, ids: tuple[str, str], us: str, handler: Inbou
     started_at = now_iso()
     play_networked(role, matchrt, client, handler)
     outcome_type = (matchrt.result or {}).get("type", "undecided")
-    print(f"  settled locally: {outcome_type} after {matchrt.view.step} steps")
+    print(f"  settled locally: {outcome_type} after {matchrt.steps} steps"
+          f" (our own move count: {matchrt.view.step})")
     how = (matchrt.result or {}).get("how")
     if how:
         print(f"    reason: {how}")  # the rule that decided it - never fly blind again
@@ -192,7 +193,7 @@ def _play(n: int, role: str, args, ids: tuple[str, str], us: str, handler: Inbou
     keep_opponent_disclosure(artifacts, game_id, n, report.verdict, theirs)
     row = score_row(
         n=n, role=role, expect_role=expect_role, us=us, opponent=args.opponent_group_id,
-        outcome_type=outcome_type, passed=report.passed, steps=matchrt.view.step,
+        outcome_type=outcome_type, passed=report.passed, steps=matchrt.steps,
         tokens=matchrt.ledger.total, our_commit=git_head(), their_disclosure=theirs,
         started_at=started_at, game_id=game_id,
         scores=(score_for(contract, outcome_type, role),
@@ -202,7 +203,7 @@ def _play(n: int, role: str, args, ids: tuple[str, str], us: str, handler: Inbou
         artifacts=artifacts, game_uid=game_uid, game_id=game_id, n=n, terms=our_terms,
         links=links, recipient=recipient, counted=args.counted,
         summary={"sub_game_number": n, "role": role, "result": outcome_type,
-                 "steps": matchrt.view.step, "opponent_group_id": their_group},
+                 "steps": matchrt.steps, "opponent_group_id": their_group},
         records=matchrt.book.records,
     )
     return row

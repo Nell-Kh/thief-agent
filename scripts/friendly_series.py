@@ -53,6 +53,7 @@ from _series_lib import (  # noqa: E402
     other_role,
     start_server,
 )
+from _series_report import auto_report, reporting_blockers  # noqa: E402
 from _series_subgame import (  # noqa: E402
     build_handler,
     load_config,
@@ -97,7 +98,7 @@ def main() -> None:
     recipient = str(config.private_value("email", "recipient", ""))
     blockers = counted_series_blockers(
         recipient, str(config.private_value("email", "mode", ""))
-    )
+    ) + reporting_blockers(args.counted)
     if args.counted and blockers:
         raise SystemExit(
             "REFUSING to play a counted series that cannot count:\n"
@@ -192,6 +193,11 @@ def main() -> None:
         print(f"WARNING: --counted was requested but did NOT arm ({league['reason']}). "
               f"Set [email].recipient to the binding league address to claim credit.")
     print(f"final_result: {json.dumps(result['final_result'], indent=2)}")
+    # Rule 9.3: a COUNTED series reports itself, with no human step. A friendly
+    # returns from here without sending, which is the safety property the old
+    # fully-manual design existed to protect - kept exactly where it costs
+    # nothing, and dropped exactly where the rulebook forbids it.
+    auto_report(result, artifacts, recipient)
     print(f"\nall {args.rounds} sub-games settled. Artifacts under {artifacts}")
 
 

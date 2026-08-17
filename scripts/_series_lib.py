@@ -22,7 +22,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from fastmcp.exceptions import ToolError  # noqa: E402
+from _series_box import SwappableHandler  # noqa: E402,F401
 
 from police_thief.constants import ROLE_POLICE, ROLE_THIEF  # noqa: E402
 from police_thief.infra.email.report_blocks import now_iso, opponent_commit  # noqa: E402,F401
@@ -30,7 +30,7 @@ from police_thief.infra.mcp_client import PeerUnreachableError  # noqa: E402
 from police_thief.infra.mcp_server import build_server  # noqa: E402
 from police_thief.services.inbound import InboundHandler  # noqa: E402
 from police_thief.services.match_runtime import MatchRuntime  # noqa: E402
-from police_thief.services.turn_reorder import HandshakeRejectedError  # noqa: E402
+from police_thief.services.turn_reorder import HandshakeRejectedError  # noqa: E402,F401
 
 #: Hard stop on a sub-game's turn exchange, so a wedged peer can never hang us.
 SAFETY_CAP = 200
@@ -86,104 +86,6 @@ def git_head() -> str:
                          check=False, cwd=ROOT)
     return out.stdout.strip() or "uncommitted"
 
-
-class SwappableHandler:
-    """Holds the :class:`InboundHandler` currently active; the tools delegate to it.
-
-    One process serves every sub-game's worth of negotiate/receive_turn/
-    submit_audit/receive_control calls; the *object* backing those calls is
-    replaced at each sub-game boundary, exactly as the kit's own driver swaps in
-    a fresh peer. Duck-types the four methods :func:`build_server` binds.
-    """
-
-    def __init__(self) -> None:
-        """Start with no handler bound; the first sub-game installs one."""
-        self.current: InboundHandler | None = None
-        self.pending: InboundHandler | None = None
-        #: The opponent's OWN counted-game declaration, read off its greeting.
-        #: Rule #38 disqualifies the group that made a false declaration, so a
-        #: number we invent for them is a declaration we are not entitled to
-        #: make; this is theirs, from a message they signed.
-        self.opponent_games_played: int | None = None
-
-    def _active(self) -> InboundHandler:
-        """The bound handler, or a clean retryable refusal while none is.
-
-        An opponent that boots faster than us can greet in the window between
-        our server binding and the first sub-game installing its handler.
-        Crashing that call with ``AttributeError`` reads as a broken peer and
-        burned a real kit-sparring run; a named not-ready error reads as
-        "try again", which every driver's patient-negotiation loop already does.
-        """
-        if self.current is None:
-            raise ToolError("peer is booting - no sub-game handler bound yet, retry")
-        return self.current
-
-    def negotiate(self, message: dict[str, Any]) -> dict[str, Any]:
-        """Forward a handshake; promote the pending handler on a boundary race.
-
-        A fast opponent greets sub-game n+1 the instant its audit of n is
-        posted, while this side is still writing artifacts - the old handler
-        then refuses with a sub-game mismatch, and the kit's driver treats a
-        refusal as fatal (correctly: no amount of waiting fixes a mismatch).
-        When the next sub-game's handler is already staged in ``pending``, the
-        mismatch IS the signal to promote it and answer as the new sub-game.
-
-        With nothing staged, a greeting for a LATER sub-game is not a refusal
-        at all - it is a peer that is early, and the honest answer is "not
-        yet", which is retryable. najamjad (2026-08-16) run one process per
-        role against our single door, so their cop opened sub-game 2 while
-        their thief was still opening sub-game 1: a permanent refusal there
-        kills a series over a race that resolves itself in seconds. A greeting
-        for an EARLIER sub-game still refuses - that one really is unplayable,
-        because the sub-game it names is already sealed and reported.
-
-        The "not yet" is raised as FastMCP's ``ToolError``: it reaches the peer
-        as the same retryable failure a bare exception would, but FastMCP
-        treats it as an EXPECTED, client-facing error and does not dump a
-        server-side traceback for it. Against a role-split opponent whose idle
-        process polls us continuously, the traceback was the actual damage -
-        hundreds of stack dumps buried three won sub-games in the operator's
-        log (najamjad, 2026-08-16).
-
-        Promotion is CONDITIONAL on ``pending`` naming the sub-game the
-        greeting actually asks for. It used to fire on any staged handler at
-        all - and a stale one (staged for sub-game n, then never consumed
-        because the opponent arrived late and ``play_sub_game`` built its own)
-        would then be swapped in for a LIVE handler mid-match. najamjad's thief
-        greeted sub-game 3 during our sub-game 2 (2026-08-16); that promotion
-        replaced the handler holding sub-game 2's turn buffer and killed a game
-        that was otherwise being played correctly.
-        """
-        try:
-            return self._active().negotiate(message)
-        except HandshakeRejectedError:
-            wanted = message.get("sub_game_number")
-            pending = self.pending
-            if pending is not None and (
-                not isinstance(wanted, int) or pending.declared_sub_game == wanted
-            ):
-                self.current, self.pending = pending, None
-                return self.current.negotiate(message)
-            here = self._active().declared_sub_game
-            if isinstance(wanted, int) and wanted > here:
-                raise ToolError(
-                    f"sub-game {wanted} has not started on this peer yet (we are "
-                    f"playing {here}) - retry when it does"
-                ) from None
-            raise
-
-    def receive_turn(self, message: dict[str, Any]) -> dict[str, Any]:
-        """Forward a turn to the active handler."""
-        return self._active().receive_turn(message)
-
-    def submit_audit(self, payload: dict[str, Any]) -> dict[str, Any]:
-        """Forward an audit disclosure to the active handler."""
-        return self._active().submit_audit(payload)
-
-    def receive_control(self, message: dict[str, Any]) -> dict[str, Any]:
-        """Forward a control message to the active handler."""
-        return self._active().receive_control(message)
 
 
 def start_server(handler_box: SwappableHandler, port: int,

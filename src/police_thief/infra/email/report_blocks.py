@@ -82,15 +82,42 @@ def now_iso() -> str:
     return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
 
 
+#: The spellings of the Step-0 record seen on the wire. Ours is
+#: ``type: "system_spec"``; MOAAMOHA (2026-08-18) seal ``record_type:
+#: "step_zero"`` and accept both spellings on THEIR side - which is how the
+#: asymmetry surfaced: a tolerant peer reads us correctly while we file
+#: ``"unknown"`` for them, and only one of the two reports has the hole.
+STEP_ZERO_MARKERS: tuple[tuple[str, str], ...] = (
+    ("type", "system_spec"),
+    ("record_type", "step_zero"),
+)
+
+
+def _step_zero_commit(record: dict[str, Any]) -> str:
+    """``record``'s ``github_commit`` if it declares itself Step-0, else ``""``.
+
+    Both scopes are searched because the marker's PLACEMENT varies as well as
+    its spelling: some peers put it on the sealed payload, some on the record
+    that wraps it. ``payload`` wins on a collision, since that is the half the
+    commit-reveal digest actually covers - a value read from the wrapper is
+    unproven, and we would rather report the proven one.
+    """
+    payload = record.get("payload") or {}
+    fields = {**record, **payload}
+    if not any(fields.get(key) == value for key, value in STEP_ZERO_MARKERS):
+        return ""
+    return str(fields.get("github_commit") or "")
+
+
 def opponent_commit(disclosure: dict[str, Any] | None) -> str:
     """The opponent's git SHA, read out of the Step-0 record it just revealed.
 
     Rule #53 asks both sides to record the commit each sub-game was played on,
     and we filed ``"unknown"`` for the opponent in every row ever written -
     while the answer sat inside the disclosure we had just audited. Every
-    conformant peer seals a Step-0 ``system_spec`` carrying its own
-    ``github_commit``, and the mutual audit hands us that record with its
-    nonce, so the value is not merely known but *proven*.
+    conformant peer seals a Step-0 record carrying its own ``github_commit``,
+    and the mutual audit hands us that record with its nonce, so the value is
+    not merely known but *proven*.
 
     Derived rather than asked for, deliberately: sharNamr play their two roles
     from two repositories and had changed both between sending us their interop
@@ -98,7 +125,7 @@ def opponent_commit(disclosure: dict[str, Any] | None) -> str:
     confidently wrong SHA in place of an honestly absent one.
     """
     for record in (disclosure or {}).get("records", []):
-        payload = record.get("payload", {})
-        if payload.get("type") == "system_spec" and payload.get("github_commit"):
-            return str(payload["github_commit"])
+        commit = _step_zero_commit(record)
+        if commit:
+            return commit
     return "unknown"

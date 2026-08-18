@@ -1,0 +1,205 @@
+From aaad1bc1d24104114b87c56a07e1cd6c29b14246 Mon Sep 17 00:00:00 2001
+From: nell <nellkh2007@gmail.com>
+Date: Tue, 18 Aug 2026 10:32:20 +0000
+Subject: [PATCH] read the opponent's commit whichever way they spell Step-0
+
+MOAAMOHA told us before playing that their Step-0 record is
+record_type: "step_zero" and that their reader already accepts our
+type: "system_spec" as equivalent. That sentence is the finding: they are
+tolerant and we were not, so their report would have carried our commit while
+ours carried "unknown" for theirs - a hole in exactly one of the two files an
+auditor joins, discovered only after a counted series was filed.
+
+Interop generosity has to be mutual, or the stricter side quietly produces the
+poorer evidence and never notices, because its own artifacts look complete from
+the inside.
+
+Both scopes are searched as well as both spellings, since placement varies too;
+payload wins on a collision because that is the half the commit-reveal digest
+covers. Nothing is loosened: a record must still declare itself Step-0, so a
+turn record carrying a github_commit cannot impersonate the declaration.
+---
+ README.md                                     |  4 +-
+ src/police_thief/infra/email/report_blocks.py | 39 +++++++--
+ tests/unit/test_step_zero_dialects_law.py     | 86 +++++++++++++++++++
+ 3 files changed, 121 insertions(+), 8 deletions(-)
+ create mode 100644 tests/unit/test_step_zero_dialects_law.py
+
+diff --git a/README.md b/README.md
+index e0ce7f8..56f1766 100644
+--- a/README.md
++++ b/README.md
+@@ -618,7 +618,7 @@ survival declaration lands one step later on its own clock.
+ 
+ | Engineering | Value |
+ |---|---|
+-| Test suite | 953 tests collected (1 environment-dependent skip; the suite itself verifies this number) |
++| Test suite | 962 tests collected (1 environment-dependent skip; the suite itself verifies this number) |
+ | Coverage | 97.61% (gate: ≥ 85%, `pyproject.toml fail_under=85`) |
+ | Token budget utilization (measured, full series) | ~14% of the ~200k series budget |
+ | Interop conformance vectors, byte-exact | 14 vendored fixtures, 14 dedicated tests |
+@@ -678,7 +678,7 @@ Rule #55 restricts self-grading to code quality, never the league outcome — th
+ that, and only that, measured against this repository's own standing definition of done
+ (`docs/TODO.md`, front matter):
+ 
+-- **Tests & coverage:** 953 tests collected, 97.55% coverage against an 85%-floor gate that fails
++- **Tests & coverage:** 962 tests collected, 97.55% coverage against an 85%-floor gate that fails
+   the whole suite if crossed — this is a hard CI gate, not an aspiration. The suite count is
+   asserted by the suite itself (`test_readme_integrity.py`), so this line cannot silently rot.
+ - **Lint:** `ruff check .` clean against the configured rule families (E,F,W,I,N,UP,B,C4,SIM),
+diff --git a/src/police_thief/infra/email/report_blocks.py b/src/police_thief/infra/email/report_blocks.py
+index c08e901..6ced6ae 100644
+--- a/src/police_thief/infra/email/report_blocks.py
++++ b/src/police_thief/infra/email/report_blocks.py
+@@ -82,15 +82,42 @@ def now_iso() -> str:
+     return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+ 
+ 
++#: The spellings of the Step-0 record seen on the wire. Ours is
++#: ``type: "system_spec"``; MOAAMOHA (2026-08-18) seal ``record_type:
++#: "step_zero"`` and accept both spellings on THEIR side - which is how the
++#: asymmetry surfaced: a tolerant peer reads us correctly while we file
++#: ``"unknown"`` for them, and only one of the two reports has the hole.
++STEP_ZERO_MARKERS: tuple[tuple[str, str], ...] = (
++    ("type", "system_spec"),
++    ("record_type", "step_zero"),
++)
++
++
++def _step_zero_commit(record: dict[str, Any]) -> str:
++    """``record``'s ``github_commit`` if it declares itself Step-0, else ``""``.
++
++    Both scopes are searched because the marker's PLACEMENT varies as well as
++    its spelling: some peers put it on the sealed payload, some on the record
++    that wraps it. ``payload`` wins on a collision, since that is the half the
++    commit-reveal digest actually covers - a value read from the wrapper is
++    unproven, and we would rather report the proven one.
++    """
++    payload = record.get("payload") or {}
++    fields = {**record, **payload}
++    if not any(fields.get(key) == value for key, value in STEP_ZERO_MARKERS):
++        return ""
++    return str(fields.get("github_commit") or "")
++
++
+ def opponent_commit(disclosure: dict[str, Any] | None) -> str:
+     """The opponent's git SHA, read out of the Step-0 record it just revealed.
+ 
+     Rule #53 asks both sides to record the commit each sub-game was played on,
+     and we filed ``"unknown"`` for the opponent in every row ever written -
+     while the answer sat inside the disclosure we had just audited. Every
+-    conformant peer seals a Step-0 ``system_spec`` carrying its own
+-    ``github_commit``, and the mutual audit hands us that record with its
+-    nonce, so the value is not merely known but *proven*.
++    conformant peer seals a Step-0 record carrying its own ``github_commit``,
++    and the mutual audit hands us that record with its nonce, so the value is
++    not merely known but *proven*.
+ 
+     Derived rather than asked for, deliberately: sharNamr play their two roles
+     from two repositories and had changed both between sending us their interop
+@@ -98,7 +125,7 @@ def opponent_commit(disclosure: dict[str, Any] | None) -> str:
+     confidently wrong SHA in place of an honestly absent one.
+     """
+     for record in (disclosure or {}).get("records", []):
+-        payload = record.get("payload", {})
+-        if payload.get("type") == "system_spec" and payload.get("github_commit"):
+-            return str(payload["github_commit"])
++        commit = _step_zero_commit(record)
++        if commit:
++            return commit
+     return "unknown"
+diff --git a/tests/unit/test_step_zero_dialects_law.py b/tests/unit/test_step_zero_dialects_law.py
+new file mode 100644
+index 0000000..ef5e26c
+--- /dev/null
++++ b/tests/unit/test_step_zero_dialects_law.py
+@@ -0,0 +1,86 @@
++"""We must read the opponent's commit whichever way they spell Step-0.
++
++Rule #53 wants the commit each sub-game was played on recorded for BOTH sides,
++and the opponent's answer is inside the disclosure we have just audited - so
++filing ``"unknown"`` is never "we could not know", it is "we did not look
++properly".
++
++MOAAMOHA (2026-08-18) told us before playing that their Step-0 record is
++``record_type: "step_zero"`` and that their own reader accepts our
++``type: "system_spec"`` as equivalent. That sentence is the whole finding: THEY
++are tolerant and we were not, so their report would have carried our commit
++while ours carried ``"unknown"`` for theirs - a hole in exactly one of the two
++files an auditor joins, and one we would have discovered only after a counted
++series was already filed.
++
++The asymmetry is the lesson. Interop generosity has to be mutual, or the
++stricter side quietly produces the poorer evidence and never sees it, because
++its own artifacts look complete from the inside.
++
++Nothing is loosened: a record must still SAY it is Step-0 under one of the
++known spellings, and a turn record carrying a ``github_commit`` is still
++ignored - otherwise the first move of the game could impersonate the
++declaration.
++"""
++
++from __future__ import annotations
++
++import pytest
++
++from police_thief.infra.email.report_blocks import opponent_commit
++
++OURS = "a5a304eb7d9c82607dcaadd3e5193c006d2d40c0"
++THEIRS = "46d78a6da6c0d1e1c06bb551de9a2a7b729b6f86"
++
++
++def disclosure(*payloads: dict) -> dict:
++    """A disclosure of sealed records, in the shape the mutual audit hands us."""
++    return {"records": [{"commit": "0" * 64, "nonce": "ab" * 16, "payload": payload}
++                        for payload in payloads]}
++
++
++def turn(step: int) -> dict:
++    """An ordinary turn record - never a source of the declared commit."""
++    return {"type": "turn", "step": step, "move": "move:E"}
++
++
++def test_our_own_spelling_still_reads() -> None:
++    """The regression guard: widening must not break the shape we already ship."""
++    assert opponent_commit(
++        disclosure({"type": "system_spec", "github_commit": OURS}, turn(1))) == OURS
++
++
++def test_the_step_zero_spelling_reads_too() -> None:
++    """MOAAMOHA's shape, which we used to file as ``unknown``."""
++    assert opponent_commit(
++        disclosure({"record_type": "step_zero", "github_commit": THEIRS}, turn(1))) == THEIRS
++
++
++def test_a_marker_on_the_wrapper_rather_than_the_payload_reads() -> None:
++    """Placement varies as well as spelling; both scopes are searched."""
++    wrapped = {"records": [{"record_type": "step_zero", "commit": "0" * 64,
++                            "payload": {"github_commit": THEIRS}}]}
++    assert opponent_commit(wrapped) == THEIRS
++
++
++def test_a_turn_record_carrying_a_commit_is_ignored() -> None:
++    """Nothing is loosened - only a record that DECLARES itself Step-0 counts.
++
++    Otherwise a peer's first move could impersonate the declaration, and the
++    SHA we file for them would be whatever appeared earliest in the stream.
++    """
++    assert opponent_commit(
++        disclosure({"type": "turn", "step": 1, "github_commit": THEIRS})) == "unknown"
++
++
++def test_a_step_zero_with_no_commit_does_not_become_a_false_answer() -> None:
++    """An honestly absent SHA stays absent; scanning continues past the blank."""
++    assert opponent_commit(disclosure({"type": "system_spec", "github_commit": ""},
++                                      {"record_type": "step_zero",
++                                       "github_commit": THEIRS})) == THEIRS
++
++
++@pytest.mark.parametrize("empty", [None, {}, {"records": []}, {"records": [turn(1)]}])
++def test_nothing_to_read_is_reported_as_unknown(empty) -> None:
++    """The one honest answer when the opponent sealed no declaration at all."""
++    assert opponent_commit(empty) == "unknown"
+-- 
+2.43.0
+

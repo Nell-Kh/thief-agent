@@ -56,6 +56,18 @@ def parse_args() -> argparse.Namespace:
                         help="comma-separated addresses an UNCOUNTED series mails "
                              "itself to when it settles; the league addresses are "
                              "refused here, before the first sub-game is played")
+    parser.add_argument("--play-windows", default="both",
+                        choices=["both", "police", "thief"],
+                        help="rule 1: run TWO processes, each locked to one role, each "
+                             "on its own port and tunnel. A locked process plays only "
+                             "its three windows and writes no result - "
+                             "scripts/merge_series.py joins the two halves afterwards")
+    parser.add_argument("--opponent-repos", default="",
+                        help="the opponent's repositories as cop=URL,thief=URL. "
+                             "Rulebook 9.3.3 makes BOTH teams' GitHub links a "
+                             "mandatory report field, and a peer that declares "
+                             "nothing leaves ours empty - so the value they gave "
+                             "us in writing is recorded here rather than lost")
     parser.add_argument("--timezone", default="Asia/Jerusalem")
     parser.add_argument("--counted", action="store_true",
                         help="claim league credit; only arms when addressed to the "

@@ -51,6 +51,7 @@ from _series_lib import (  # noqa: E402
     SwappableHandler,
     git_head,
     other_role,
+    peer_repos,
     start_server,
 )
 from _series_report import (  # noqa: E402
@@ -64,6 +65,7 @@ from _series_subgame import (  # noqa: E402
     peer_url_for,
     play_sub_game,
 )
+from _series_windows import is_split, role_at, split_notice, windows_for  # noqa: E402
 
 sys.path.insert(0, str(ROOT / "src"))
 
@@ -125,7 +127,9 @@ def main() -> None:
     print(f"commit   = {git_head()}   <- verify this is the code you meant to play")
     print(f"setting  = {terms['setting']!r} (a signed term - must match the opponent)")
 
-    artifacts = Path(args.artifacts or ROOT / "results" / f"friendly_{ids[0]}")
+    windows = windows_for(args.rounds, args.start_role, args.play_windows)
+    tag = f"_{args.play_windows}" if is_split(args.play_windows) else ""
+    artifacts = Path(args.artifacts or ROOT / "results" / f"friendly_{ids[0]}{tag}")
     recovered = load_rows(artifacts)
     archived = archive_previous_run(artifacts)
     if archived is not None:
@@ -142,22 +146,26 @@ def main() -> None:
     # opponent's three tries and its backoff on a race we can simply not have.
     # `play_sub_game` finds this handler already declared for sub-game 1 and
     # keeps it, so the greeting it may already hold is not thrown away.
-    handler_box.current = build_handler(config, args.start_role, 1)
+    handler_box.current = build_handler(
+        config, role_at(windows[0], args.start_role), windows[0])
     start_server(handler_box, args.port, args.host)
     print(f"serving on {args.host}:{args.port}/mcp")
-    print(f"  we are {args.start_role} in sub-game 1, so we dial "
-          f"{peer_url_for(args, args.start_role)}")
+    opening = role_at(windows[0], args.start_role)
+    print(f"  we are {opening} in sub-game {windows[0]}, so we dial "
+          f"{peer_url_for(args, opening)}")
     if getattr(args, "peer_thief", ""):
         print(f"  role-split opponent: as police we dial {args.peer_thief} , "
               f"as thief {args.peer}")
     time.sleep(1.0)  # let the server bind before the first greeting
 
     links = links_block(ids[0], github={
-        us: dict(config.private("game").get("repos", {})), args.opponent_group_id: {}})
+        us: dict(config.private("game").get("repos", {})),
+        args.opponent_group_id: peer_repos(getattr(args, "opponent_repos", ""))})
     write_declaration(args, ids, us, config, artifacts, links, recipient)
 
-    rows, role = [], args.start_role
-    for n in range(1, args.rounds + 1):
+    rows = []
+    for n in windows:
+        role = role_at(n, args.start_role)
         try:
             rows.append(play_sub_game(n, role, args, ids, us, handler_box, artifacts,
                                       links, recipient))
@@ -172,7 +180,11 @@ def main() -> None:
         # Persist after EVERY sub-game: from here on a crash costs the rest of
         # the series, never the games already won.
         save_rows(artifacts, rows)
-        role = other_role(role)
+
+    if is_split(args.play_windows):
+        print(split_notice(windows, str(artifacts),
+                           handler_box.opponent_games_played))
+        return
 
     alarm = containment_alarm(rows)
     if alarm:

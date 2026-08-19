@@ -17,6 +17,7 @@ from typing import Any
 from ..shared.config import ConfigManager
 from ..shared.interop import negotiate_extras, sign_terms, terms_from_contract
 from .crypto import new_nonce
+from .identity_block import identity_block
 
 #: The locked-model families we compare under the both-declare-or-tolerate rule.
 MODEL_FAMILIES = ("scent_model_sha256", "wire_shape_sha256", "info_mode_sha256")
@@ -70,6 +71,7 @@ def build_terms(
         "group_id": peer_id,
         "counted_games_played": int(games_played),
         "step0_commit": step0_commit,
+        "identity": identity_block(config, peer_id),
     }
     greeting.update(negotiate_extras(config.role, sub_game))
     return greeting

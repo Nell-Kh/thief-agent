@@ -242,3 +242,16 @@ def score_for(contract, outcome_type: str, role: str) -> int:
     if outcome_type == "survival":
         return scoring.survival_thief if role == ROLE_THIEF else scoring.survival_cop
     return scoring.technical_loss
+
+
+def peer_repos(raw: str) -> dict[str, str]:
+    """Parse ``cop=URL,thief=URL`` into the report's github sub-block.
+
+    Rulebook 9.3.3 lists both teams' repository links among the mandatory
+    fields, but a report can only carry what the opponent declared - and no
+    peer we have met declares them on the wire. Recording what they sent us in
+    writing is the difference between a complete report and one missing a
+    required field; an empty argument keeps the old empty mapping.
+    """
+    pairs = [chunk.split("=", 1) for chunk in raw.split(",") if "=" in chunk]
+    return {key.strip(): value.strip() for key, value in pairs if value.strip()}

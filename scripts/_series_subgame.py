@@ -165,8 +165,9 @@ def _play(n: int, role: str, args, ids: tuple[str, str], us: str, handler: Inbou
     print(f"  dialling their {expect_role} at {peer_url_for(args, role)}")
     negotiate_patiently(
         client,
-        build_terms(config, peer_id=us, games_played=args.games_played,
-                    sub_game=n, step0_commit=matchrt.step0_commit),
+        {**build_terms(config, peer_id=us, games_played=args.games_played,
+                       sub_game=n, step0_commit=matchrt.step0_commit),
+         "game_uid": ids[1], "game_id": ids[0]},
         wait_seconds=args.wait,
         announce=lambda message: print(f"  {message}"),
     )

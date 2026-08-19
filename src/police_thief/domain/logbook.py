@@ -62,7 +62,8 @@ class Logbook:
         return {
             "sender": self.role,
             "records": self.records,
-            "result_claim": result_claim or self.result or {},
+            "result_claim": str((result_claim or self.result or {}).get("type", "undecided")),
+            "result_detail": result_claim or self.result or {},
         }
 
     def close(self, result: dict[str, Any]) -> None:

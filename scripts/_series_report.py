@@ -34,6 +34,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from _series_lib import inclusive_games
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -227,3 +229,27 @@ def auto_report(result: dict[str, Any], artifacts: Path, recipient: str,
             f"  uv run python scripts/mail_result.py {artifacts} --send"
         ) from failure
     announce(f"report   : {status}")
+
+
+def series_result(args, ids, us, links, rows, config, their_games, recipient) -> dict[str, Any]:
+    """The one report a finished series produces, built from its rows.
+
+    ``games_played`` is the only field needing care. Ours is inclusive: a
+    COUNTED series advances the pairwise counter, a friendly does not (warm-up
+    games are not counted). Theirs is what THEY declared on the wire - the
+    games before this one - advanced by the same +1 the field name promises;
+    never a number we made up, because rule #38 disqualifies whoever filed
+    the false declaration, so the base is always theirs.
+    """
+    from police_thief.infra.email.reports import result_payload
+
+    return result_payload(
+        game_uid=ids[1], game_id=ids[0], links=links, timezone=args.timezone,
+        group_ids=[us, args.opponent_group_id], sub_games=rows,
+        tie_score=config.contract.scoring.tie_score,
+        games_played={
+            us: args.games_played + (1 if args.counted else 0),
+            args.opponent_group_id: inclusive_games(their_games, args.counted),
+        },
+        first_meeting=args.games_played == 0, counted=args.counted, recipient=recipient,
+    )

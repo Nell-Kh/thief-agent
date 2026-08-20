@@ -255,3 +255,18 @@ def peer_repos(raw: str) -> dict[str, str]:
     """
     pairs = [chunk.split("=", 1) for chunk in raw.split(",") if "=" in chunk]
     return {key.strip(): value.strip() for key, value in pairs if value.strip()}
+
+
+def inclusive_games(declared: int | None, counted: bool) -> int | None:
+    """An opponent's pre-series declaration, advanced to include this series.
+
+    A peer declares ``counted_games_played`` as the games it has ALREADY had
+    counted; the report's field is ``games_played_including_this``. Filing
+    the declaration raw made ours say ``0`` for an opponent whose own report
+    says ``1`` for the same counted series - outside the consensus hash, so
+    harmless to settlement, but two filings that should agree did not.
+    ``None`` (they declared nothing) stays ``None``: no invented number.
+    """
+    if declared is None:
+        return None
+    return int(declared) + (1 if counted else 0)

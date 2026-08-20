@@ -58,6 +58,7 @@ from _series_report import (  # noqa: E402
     auto_report,
     friendly_recipients,
     reporting_blockers,
+    series_result,
 )
 from _series_subgame import (  # noqa: E402
     build_handler,
@@ -74,9 +75,6 @@ from police_thief.infra.email.naming import (  # noqa: E402
     write_lifecycle_file,
 )
 from police_thief.infra.email.report_blocks import links_block  # noqa: E402
-from police_thief.infra.email.reports import (  # noqa: E402
-    result_payload,
-)
 from police_thief.infra.email.result_check import validate_result_payload  # noqa: E402
 from police_thief.services.series_guard import (  # noqa: E402
     CONTAINED_FAILURES,
@@ -190,20 +188,8 @@ def main() -> None:
     if alarm:
         print(f"\n{alarm}")
 
-    result = result_payload(
-        game_uid=ids[1], game_id=ids[0], links=links, timezone=args.timezone,
-        group_ids=[us, args.opponent_group_id], sub_games=rows,
-        tie_score=config.contract.scoring.tie_score,
-        games_played={
-            # Ours, inclusive: a COUNTED series advances the pairwise counter,
-            # a friendly does not (rulebook: warm-up games are not counted).
-            us: args.games_played + (1 if args.counted else 0),
-            # Theirs, as THEY declared it on the wire - never a number we made
-            # up. Rule #38 disqualifies whoever filed the false declaration.
-            args.opponent_group_id: handler_box.opponent_games_played,
-        },
-        first_meeting=args.games_played == 0, counted=args.counted, recipient=recipient,
-    )
+    result = series_result(args, ids, us, links, rows, config,
+                           handler_box.opponent_games_played, recipient)
     validate_result_payload(result, tie_score=config.contract.scoring.tie_score)
     path = write_lifecycle_file(artifacts, result_file_name(ids[0]), result)
 

@@ -14,6 +14,8 @@ from police_thief.shared.interop_profile import (
     DEFAULT,
     PROFILE_BOOK,
     PROFILE_KIT,
+    SCOPE_KIT,
+    SCOPE_UID,
     TIE_AWARD_ADD,
     TIE_AWARD_SUBSTITUTE,
     TURN_ORDER,
@@ -81,7 +83,30 @@ def test_the_declaration_carries_everything_a_peer_must_agree_on() -> None:
         "interop_profile": PROFILE_KIT,
         "tie_award": TIE_AWARD_ADD,
         "turn_order": TURN_ORDER,
+        "settlement_scope": SCOPE_KIT,
     }
+
+
+def test_the_settlement_scope_is_independent_of_the_dialect() -> None:
+    """Which object is hashed and how its bytes are spelled are two questions.
+
+    uoh-ay26's preimage differs from the kit's in four ways at once - the bare
+    label as ``game_id``, a ``game_uid``, no aggregate, and compact separators -
+    so no combination of dialect and tie-award reaches it. It needs its own axis.
+    """
+    assert resolve(PROFILE_KIT, TIE_AWARD_ADD, SCOPE_UID).scope_carries_aggregate is False
+    assert resolve(PROFILE_KIT, TIE_AWARD_ADD, SCOPE_KIT).scope_carries_aggregate is True
+    # The kit dialect settles spaced - but never under the uid scope, which pins
+    # compact as part of its own definition.
+    assert resolve(PROFILE_KIT, TIE_AWARD_ADD, SCOPE_KIT).settlement_scope_spaced is True
+    assert resolve(PROFILE_KIT, TIE_AWARD_ADD, SCOPE_UID).settlement_scope_spaced is False
+    assert resolve(PROFILE_BOOK, TIE_AWARD_ADD, SCOPE_KIT).settlement_scope_spaced is False
+
+
+def test_an_unknown_settlement_scope_is_refused_not_defaulted() -> None:
+    """A typo must never quietly settle on the other team's hash."""
+    with pytest.raises(InteropProfileError, match="settlement_scope"):
+        resolve(PROFILE_KIT, TIE_AWARD_ADD, "uoh-ay26")
 
 
 def test_case_and_whitespace_in_config_do_not_change_the_dialect() -> None:

@@ -30,6 +30,26 @@ from .report_blocks import _is_armed, league_block
 SCHEMA_VERSION = "1.1"
 
 
+def settlement_game_id(game_id: str, profile: InteropProfile = DEFAULT) -> str:
+    """The ``game_id`` as it appears INSIDE the settlement preimage.
+
+    Under the kit scope it is the artifact's own id, unchanged. Under the uid
+    scope uoh-ay26 place the bare series label there (``"G010"``) - the uid
+    beside it already carries the pair-and-label identity - so the trailing
+    label is lifted out of ``<a>-vs-<b>-<label>``.
+
+    A ``game_id`` with no label (the unlabelled derivation) has nothing to lift
+    and is returned whole; that pair must agree a label before settling, which
+    is exactly what ``--series-label`` exists to make them do.
+    """
+    if profile.scope_carries_aggregate:
+        return game_id
+    _, separator, label = game_id.partition("-vs-")
+    if not separator or "-" not in label:
+        return game_id
+    return label.split("-", 1)[1]
+
+
 def _base(
     game_uid: str, game_id: str, links: dict[str, Any], counted: bool, recipient: str
 ) -> dict[str, Any]:
@@ -129,7 +149,14 @@ def result_payload(
         },
         "mutual_agreement": {
             "sha256": mutual_agreement_hash(
-                mutual_agreement_scope(game_id, sub_games, aggregate), profile
+                mutual_agreement_scope(
+                    settlement_game_id(game_id, profile),
+                    sub_games,
+                    aggregate,
+                    game_uid=game_uid,
+                    profile=profile,
+                ),
+                profile,
             ),
             "confirmed": settlement_confirmed(sub_games),
         },

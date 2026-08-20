@@ -40,10 +40,10 @@ from police_thief.shared.interop import negotiate_extras, terms_from_contract  #
 
 def handler_for(role: str, sub_game: int) -> InboundHandler:
     """An inbound handler as the driver builds one: our role, their role, this sub-game."""
-    contract = ConfigManager.load(role).contract
+    config = ConfigManager.load(role)
     return InboundHandler(
-        our_terms=terms_from_contract(contract),
-        our_extras=negotiate_extras(role, sub_game),
+        our_terms=terms_from_contract(config.contract),
+        our_extras=negotiate_extras(role, sub_game, config.interop),
         expect_role="thief" if role == "police" else "police",
         reorder_window=4,
     )

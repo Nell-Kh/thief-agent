@@ -20,7 +20,7 @@ def opponent(config_dir: Path) -> InboundHandler:
     thief = ConfigManager.load("thief", config_dir)
     return InboundHandler(
         our_terms=terms_from_contract(thief.contract),
-        our_extras=negotiate_extras(thief.role, 1),
+        our_extras=negotiate_extras(thief.role, 1, thief.interop),
         expect_role="police",
     )
 
@@ -133,7 +133,7 @@ def test_both_peers_can_be_orchestrated_from_the_same_contract(config_dir: Path)
     police_config = ConfigManager.load("police", config_dir)
     police_handler = InboundHandler(
         our_terms=terms_from_contract(police_config.contract),
-        our_extras=negotiate_extras(police_config.role, 1),
+        our_extras=negotiate_extras(police_config.role, 1, police_config.interop),
         expect_role="thief",
     )
     thief = Orchestrator(

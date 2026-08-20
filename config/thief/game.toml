@@ -47,6 +47,26 @@ profile = "kit"
 # always used; agree it with the opponent before a counted series.
 tie_award = "add"
 
+# WHICH OBJECT the settlement hash is taken over - independent of `profile`,
+# which only decides how the bytes are spelled. Declared at the handshake and
+# refused on a stated difference, exactly like the axes above.
+#
+#   kit - game_id + the DERIVED aggregate + the trimmed rows, spaced.
+#         Everything this project settled before 2026-08-20.
+#   uid - the bare series label as game_id, + game_uid, + the trimmed rows,
+#         compact, with NO aggregate. uoh-ay26's published preimage.
+#
+# Set to "uid" for the uoh-ay26 series. Four things differ between the two at
+# once, so no combination of `profile`/`tie_award` reaches theirs - and a pair
+# that has not agreed one settles on different hashes, which rule #35 scores as
+# a contradiction and zeroes BOTH teams. Their scope is also the better one:
+# `aggregate` is derived from the rows, so excluding it loses no information
+# while keeping the unsettled add-vs-substitute reading out of the one hash the
+# league joins on.
+#
+# REVERT TO "kit" BEFORE PLAYING ANYONE ELSE.
+settlement_scope = "uid"
+
 [deception]
 # The cop's capture claims reveal its belief every turn. Adaptive: while the
 # claims wander, feed directional lies; once they land close, go vague -

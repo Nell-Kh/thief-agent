@@ -5,9 +5,19 @@ Split out of :mod:`negotiation` under the 150-line rule.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from ..shared.config import ConfigManager
+
+#: A 40-character lowercase git commit hash, and nothing else.
+#:
+#: uoh-ay26 (2026-08-20) require the greeting to carry a top-level
+#: ``git_commit_hash`` in exactly this shape and validate it on arrival. It is
+#: NOT ``step0_commit``, which is the commit-reveal commitment over the sealed
+#: Step-0 record - the two are different hashes of different things and travel
+#: as separate keys. The same value is sealed into Step-0 as ``github_commit``.
+GIT_COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 
 
 def identity_block(config: ConfigManager, peer_id: str) -> dict[str, Any]:
@@ -29,3 +39,15 @@ def identity_block(config: ConfigManager, peer_id: str) -> dict[str, Any]:
         "members": list(game.get("members", [])),
         "repos": dict(game.get("repos", {})),
     }
+
+
+def git_commit_field(git_commit_hash: str) -> dict[str, str]:
+    """``{"git_commit_hash": ...}`` when it is well formed, else nothing.
+
+    Which code is playing is part of who this peer is, so it lives beside the
+    rest of the identity. An uncommitted tree yields ``"uncommitted"`` upstream:
+    omitted rather than sent, because this protocol tolerates silence in both
+    directions and a malformed declaration is refused where an absent one is not.
+    """
+    value = str(git_commit_hash or "")
+    return {"git_commit_hash": value} if GIT_COMMIT_RE.match(value) else {}

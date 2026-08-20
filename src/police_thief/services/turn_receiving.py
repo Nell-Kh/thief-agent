@@ -127,6 +127,16 @@ def _apply_claim_response(view: WorldView, message: TurnMessage, contract: GameC
         view.note(f"claim at {tuple(claim)} answered: not there")
 
 
+#: Concession spellings a trapped thief may use for rule #47. ``capture`` is
+#: this project's own and the reference's; ``boxed_in`` is uoh-ay26's published
+#: spelling (2026-08-20) and MUST be accepted, because the failure is silent:
+#: an unrecognised type fell through every branch below, so their enclosed
+#: thief stopped playing while we recorded no capture at all, and the two sides
+#: carried different results for that sub-game into an audit rule #35 zeroes
+#: both teams over. An unknown type is now noted rather than swallowed.
+CONCESSION_TYPES = ("capture", "boxed_in")
+
+
 def _apply_win_claim(view: WorldView, message: TurnMessage, contract: GameContract) -> None:
     """A survival claim or a concession, each accepted only from the right side.
 
@@ -137,16 +147,21 @@ def _apply_win_claim(view: WorldView, message: TurnMessage, contract: GameContra
     """
     if message.win_claim is None:
         return
-    if message.win_claim.get("type") == "survival" and message.sender == "thief":
+    claim_type = message.win_claim.get("type")
+    if claim_type == "survival" and message.sender == "thief":
         if message.step >= contract.movement.survival_threshold:
             view.settle({"type": "survival", "winner": "thief"}, message.step)
         else:
             view.note("premature survival claim ignored")
     elif (
-        message.win_claim.get("type") == "capture"
+        claim_type in CONCESSION_TYPES
         and message.sender == "thief"
         and view.role == "police"
         and view.result is None
     ):
         view.settle({"type": "capture", "winner": "police", "how": "conceded"}, view.step)
-        view.note("the thief conceded the capture")
+        view.note(f"the thief conceded the capture ({claim_type})")
+    else:
+        # Never silent: an unrecognised or misdirected claim is a disagreement
+        # about the outcome, and the audit is far too late to discover one.
+        view.note(f"unhandled win_claim {claim_type!r} from {message.sender!r} ignored")

@@ -53,11 +53,13 @@ class Orchestrator(OrchestratorAccessors):
         games_played: int,
         sub_game: int = 1,
         step0_commit: str = "unsealed",
+        git_commit_hash: str = "",
     ) -> dict[str, Any]:
         """Open a match: create the board and negotiate terms with the opponent.
 
         The terms carry our contract digest, scent-model lock, declared game
-        count and Step-0 commitment, so any lock mismatch stops play before
+        count, Step-0 commitment and - when the tree is committed - the 40-hex
+        git commit of the code playing, so any lock mismatch stops play before
         the first move.
         """
         self._state = self._sdk.new_game()
@@ -68,6 +70,7 @@ class Orchestrator(OrchestratorAccessors):
             games_played=games_played,
             sub_game=sub_game,
             step0_commit=step0_commit,
+            git_commit_hash=git_commit_hash,
         )
         return self._client.negotiate(terms)
 

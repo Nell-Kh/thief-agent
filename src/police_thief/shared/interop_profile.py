@@ -52,6 +52,29 @@ TIE_AWARD_SUBSTITUTE: Final[str] = "substitute"
 
 TIE_AWARDS: Final[tuple[str, ...]] = (TIE_AWARD_ADD, TIE_AWARD_SUBSTITUTE)
 
+#: Settlement scope: WHICH object the settlement hash is taken over. The
+#: dialect above answers how the bytes are spelled; this answers what is being
+#: spelled, and the two are independent.
+#:
+#: The kit's own preimage - ``game_id``, the DERIVED aggregate, and the trimmed
+#: rows - in the dialect's settlement spacing. Everything this project has
+#: settled live was settled under it.
+SCOPE_KIT: Final[str] = "kit"
+
+#: uoh-ay26's published preimage (2026-08-20): ``game_id``, ``game_uid`` and
+#: the trimmed rows, always compact, with the derived aggregate EXCLUDED.
+#:
+#: Four things differ from the kit scope at once, so no combination of the axes
+#: above reaches it: the bare series label as ``game_id``, the presence of
+#: ``game_uid``, the absence of ``aggregate``, and compact separators. It is
+#: arguably the better scope - ``aggregate`` is derived from the rows, so it
+#: carries no information they do not, while dragging the unsettled
+#: add-vs-substitute tie-award fork straight into the one hash rule #35 zeroes
+#: both teams over.
+SCOPE_UID: Final[str] = "uid"
+
+SETTLEMENT_SCOPES: Final[tuple[str, ...]] = (SCOPE_KIT, SCOPE_UID)
+
 #: Who acts first within a full turn. The book genuinely does not fix one, so
 #: this is a free choice - but it is not a LOCAL one. Two peers on opposite
 #: orders shake hands, play, and then disagree about the board, which is a
@@ -61,7 +84,7 @@ TURN_ORDER: Final[str] = "cop_first"
 
 
 class InteropProfileError(ValueError):
-    """Raised when a configured dialect or tie-award value is not recognised."""
+    """Raised when a configured dialect, tie-award or scope value is unrecognised."""
 
 
 @dataclass(frozen=True)
@@ -70,6 +93,7 @@ class InteropProfile:
 
     name: str
     tie_award: str
+    settlement_scope: str = SCOPE_KIT
 
     @property
     def nonce_inside_payload(self) -> bool:
@@ -128,6 +152,23 @@ class InteropProfile:
         """Whether a series tie ADDS the award to the totals rather than replacing them."""
         return self.tie_award == TIE_AWARD_ADD
 
+    @property
+    def scope_carries_aggregate(self) -> bool:
+        """Whether the DERIVED aggregate sits inside the settlement preimage."""
+        # Excluding it loses nothing - it is computed from the rows - and keeps
+        # the add-vs-substitute reading, which neither dialect settles, out of
+        # a hash a disagreement would zero both teams over.
+        return self.settlement_scope == SCOPE_KIT
+
+    @property
+    def settlement_scope_spaced(self) -> bool:
+        """Whether the SETTLEMENT hash uses spaced separators."""
+        # Deliberately separate from `settlement_spaced`, which also governs the
+        # emailed report's own signature: the uid scope pins compact spacing as
+        # part of its definition, and changing the report signature's form
+        # alongside it would alter an artifact nobody asked us to change.
+        return self.settlement_spaced and self.scope_carries_aggregate
+
     def declaration(self) -> dict[str, str]:
         """What we announce at the handshake so a mismatch refuses.
 
@@ -139,15 +180,22 @@ class InteropProfile:
             "interop_profile": self.name,
             "tie_award": self.tie_award,
             "turn_order": TURN_ORDER,
+            "settlement_scope": self.settlement_scope,
         }
 
 
-def resolve(name: str | None = None, tie_award: str | None = None) -> InteropProfile:
+def resolve(
+    name: str | None = None,
+    tie_award: str | None = None,
+    settlement_scope: str | None = None,
+) -> InteropProfile:
     """Build a profile from configured strings, refusing anything unrecognised.
 
     Args:
         name: ``"kit"`` or ``"book"``; ``None``/empty selects the kit default.
         tie_award: ``"add"`` or ``"substitute"``; ``None``/empty selects ``add``.
+        settlement_scope: ``"kit"`` or ``"uid"``; ``None``/empty selects ``kit``,
+            so every artifact already written still settles exactly as before.
 
     Raises:
         InteropProfileError: on an unrecognised value. A typo must not quietly
@@ -156,6 +204,7 @@ def resolve(name: str | None = None, tie_award: str | None = None) -> InteropPro
     """
     resolved_name = (name or PROFILE_KIT).strip().lower()
     resolved_tie = (tie_award or TIE_AWARD_ADD).strip().lower()
+    resolved_scope = (settlement_scope or SCOPE_KIT).strip().lower()
     if resolved_name not in PROFILES:
         raise InteropProfileError(
             f"unknown [interop].profile {name!r}; expected one of {PROFILES}"
@@ -164,7 +213,14 @@ def resolve(name: str | None = None, tie_award: str | None = None) -> InteropPro
         raise InteropProfileError(
             f"unknown [interop].tie_award {tie_award!r}; expected one of {TIE_AWARDS}"
         )
-    return InteropProfile(name=resolved_name, tie_award=resolved_tie)
+    if resolved_scope not in SETTLEMENT_SCOPES:
+        raise InteropProfileError(
+            f"unknown [interop].settlement_scope {settlement_scope!r}; "
+            f"expected one of {SETTLEMENT_SCOPES}"
+        )
+    return InteropProfile(
+        name=resolved_name, tie_award=resolved_tie, settlement_scope=resolved_scope
+    )
 
 
 #: The dialect assumed by any caller that has no configuration in hand - the

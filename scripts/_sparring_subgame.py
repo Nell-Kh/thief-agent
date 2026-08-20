@@ -77,7 +77,7 @@ def run_sub_game(n: int, scratch_dir: Path, peer_url: str, our_group_id: str, us
     config = ConfigManager.load(role, scratch_dir)
     contract = config.contract
     our_terms = terms_from_contract(contract)
-    our_extras = negotiate_extras(role, n)
+    our_extras = negotiate_extras(role, n, config.interop)
     promoted = handler_box.current
     if promoted is not None and promoted.declared_sub_game == n:
         handler = promoted  # a boundary-race greeting already landed in it
@@ -114,7 +114,8 @@ def run_sub_game(n: int, scratch_dir: Path, peer_url: str, our_group_id: str, us
             # instant its audit is posted, and the box promotes this on the mismatch.
             next_role = OUR_ROLE_FOR[n + 1]
             handler_box.pending = InboundHandler(
-                our_terms=our_terms, our_extras=negotiate_extras(next_role, n + 1),
+                our_terms=our_terms,
+                our_extras=negotiate_extras(next_role, n + 1, config.interop),
                 expect_role=ROLE_THIEF if next_role == ROLE_POLICE else ROLE_POLICE,
                 reorder_window=4,
             )

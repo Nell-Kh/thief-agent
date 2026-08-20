@@ -47,7 +47,7 @@ def check(theirs, ours_config: ConfigManager, expect_role: str = "thief"):
     return validate_terms(
         theirs,
         our_terms=terms_from_contract(ours_config.contract),
-        our_extras=negotiate_extras(ours_config.role, 1),
+        our_extras=negotiate_extras(ours_config.role, 1, ours_config.interop),
         expect_role=expect_role,
     )
 
@@ -174,6 +174,6 @@ def test_a_group_id_nested_under_identity_is_accepted(police) -> None:
     greeting["identity"] = {"group_id": "moamteam", "group_name": "MOAMTEAM"}
     accepted = validate_terms(
         greeting, our_terms=terms_from_contract(police.contract),
-        our_extras=negotiate_extras("thief", 1), expect_role="police",
+        our_extras=negotiate_extras("thief", 1, police.interop), expect_role="police",
     )
     assert accepted["group_id"] == "moamteam"

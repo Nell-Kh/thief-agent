@@ -85,7 +85,10 @@ def build_handler(config: ConfigManager, role: str, n: int) -> InboundHandler:
     """
     return InboundHandler(
         our_terms=terms_from_contract(config.contract),
-        our_extras=negotiate_extras(role, n),
+        # The CONFIGURED dialect, not the module default: our_extras is the
+        # object an opponent's declaration is refused against, so a scope we
+        # announce in the greeting but omit here would refuse our own partner.
+        our_extras=negotiate_extras(role, n, config.interop),
         expect_role=other_role(role),
         reorder_window=4,
     )
@@ -166,7 +169,8 @@ def _play(n: int, role: str, args, ids: tuple[str, str], us: str, handler: Inbou
     negotiate_patiently(
         client,
         {**build_terms(config, peer_id=us, games_played=args.games_played,
-                       sub_game=n, step0_commit=matchrt.step0_commit),
+                       sub_game=n, step0_commit=matchrt.step0_commit,
+                       git_commit_hash=git_head()),
          "game_uid": ids[1], "game_id": ids[0]},
         wait_seconds=args.wait,
         announce=lambda message: print(f"  {message}"),
@@ -179,7 +183,8 @@ def _play(n: int, role: str, args, ids: tuple[str, str], us: str, handler: Inbou
                            f"expected {args.opponent_group_id!r} - check --opponent-group-id")
     print(f"  negotiated OK with {their_group} (role {handler.opponent_terms.get('role')})")
     handler_box.opponent_games_played = handler.opponent_games_played
-    for note in model_advisories(handler.opponent_terms, negotiate_extras(role, n)):
+    for note in model_advisories(handler.opponent_terms,
+                                 negotiate_extras(role, n, config.interop)):
         print(f"  note: {note}")  # a difference nobody is told about is one nobody fixes
 
     started_at = now_iso()

@@ -56,7 +56,10 @@ def build_subsystems(
         client=PeerClient(transport, contract.network, contract.rate_limiter),
         inbound=InboundHandler(
             our_terms=terms_from_contract(contract),
-            our_extras=negotiate_extras(config.role, sub_game_number=1),
+            # The CONFIGURED dialect, not the module default. `build_terms`
+            # declares config.interop, so validating against DEFAULT here made
+            # the peer refuse its own greeting the moment the two differed.
+            our_extras=negotiate_extras(config.role, 1, config.interop),
             expect_role=sdk.opponent_role(),
         ),
         watchdog=Watchdog(

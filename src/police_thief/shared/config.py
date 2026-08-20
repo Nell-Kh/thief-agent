@@ -88,6 +88,7 @@ class ConfigManager:
         return resolve(
             self.private_value("interop", "profile"),
             self.private_value("interop", "tie_award"),
+            self.private_value("interop", "settlement_scope"),
         )
 
     @property

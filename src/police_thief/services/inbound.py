@@ -19,7 +19,12 @@ from ..domain.negotiation import TermsRejectedError, validate_terms
 from ..domain.turnmsg import TurnMessage
 from .turn_reorder import HandshakeRejectedError, TurnReorderBuffer
 
-__all__ = ["HandshakeRejectedError", "InboundHandler"]
+__all__ = ["SERIES_CONSENSUS", "HandshakeRejectedError", "InboundHandler"]
+
+#: ``result_claim`` marking a ``submit_audit`` call as the end-of-series
+#: settlement claim rather than a game disclosure (uoh-ay26 §"Final series
+#: consensus extension"). It carries ``records: []`` and a ``consensus_sha``.
+SERIES_CONSENSUS = "series_consensus"
 
 
 class InboundHandler:
@@ -35,6 +40,9 @@ class InboundHandler:
         self._reorder = TurnReorderBuffer(reorder_window)
         self.opponent_terms: dict[str, Any] | None = None
         self.audit: dict[str, Any] | None = None
+        #: The opponent's end-of-series settlement claim, kept apart from
+        #: ``audit`` so neither envelope can ever overwrite the other.
+        self.consensus: dict[str, Any] | None = None
         self.controls: list[dict[str, Any]] = []
 
     @property
@@ -144,13 +152,34 @@ class InboundHandler:
         return self.controls.pop(0)
 
     def submit_audit(self, payload: dict[str, Any]) -> dict[str, Any]:
-        """Accept the opponent's end-of-game disclosure for the mutual audit."""
+        """Accept the opponent's end-of-game disclosure for the mutual audit.
+
+        ``submit_audit`` carries two different envelopes on the uoh-ay26 wire:
+        the game disclosure, and the end-of-series ``series_consensus`` claim,
+        which is defined to carry ``records: []`` and a ``consensus_sha``. They
+        are told apart HERE rather than downstream, because the consensus
+        envelope used to satisfy every check above and then land on
+        ``self.audit`` - silently replacing a real, verified game disclosure
+        with an empty record set, so the mutual audit had nothing left to
+        verify and a settled sub-game turned into an unexplained failure.
+        """
         if not isinstance(payload, dict) or not isinstance(payload.get("records"), list):
             raise HandshakeRejectedError("audit payload must carry a list of records")
         if payload.get("sender") != self._expect_role:
             raise HandshakeRejectedError(
                 f"expected an audit from {self._expect_role!r}"
             )
+        if payload.get("result_claim") == SERIES_CONSENSUS:
+            # Their own rule, mirrored: "a consensus envelope containing game
+            # records is malformed." Refusing it is how they learn we disagree
+            # while there is still someone to tell.
+            if payload.get("records"):
+                raise HandshakeRejectedError(
+                    "a series_consensus envelope must carry records: []"
+                )
+            self.consensus = payload
+            return {"ok": True, "result_claim": SERIES_CONSENSUS,
+                    "consensus_sha": str(payload.get("consensus_sha", ""))}
         self.audit = payload
         return {"ok": True, "records": len(payload.get("records", []))}
 

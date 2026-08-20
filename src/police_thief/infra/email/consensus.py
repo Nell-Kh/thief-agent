@@ -150,27 +150,54 @@ def settlement_confirmed(sub_games: list[dict[str, Any]]) -> bool:
 
 
 def mutual_agreement_scope(
-    game_id: str, sub_games: list[dict[str, Any]], aggregate: dict[str, Any]
+    game_id: str,
+    sub_games: list[dict[str, Any]],
+    aggregate: dict[str, Any],
+    *,
+    game_uid: str = "",
+    profile: InteropProfile = DEFAULT,
 ) -> dict[str, Any]:
     """The trimmed consensus preimage - everything both teams must agree on.
 
-    Each row keeps ONLY the pair-observable fields; per-side facts (timestamps,
-    tokens, log file names, audit flags) are cut, because a whole-body scope is
-    per-side by construction and two conformant teams could never match it.
+    Raises:
+        ValueError: when the uid scope is in force and no ``game_uid`` was
+            given, rather than building a preimage that cannot match.
     """
-    return {
-        "game_id": game_id,
-        "aggregate": aggregate,
-        "sub_games": [{key: row[key] for key in SCOPE_ROW_KEYS} for row in sub_games],
-    }
+    # Each row keeps ONLY the pair-observable fields; per-side facts (times,
+    # tokens, log names, audit flags) are cut, because a whole-body scope is
+    # per-side by construction and two honest teams could never match it.
+    #
+    # WHICH object is hashed is declared at the handshake
+    # (`[interop].settlement_scope`) and refused on a stated difference:
+    #   kit - game_id + the DERIVED aggregate + the rows. The default, and what
+    #         every artifact already on disk settled under.
+    #   uid - game_id + game_uid + the rows, no aggregate: uoh-ay26's published
+    #         preimage. `game_id` there is the bare series label, since the uid
+    #         beside it already carries the full pair-and-label identity.
+    rows = [{key: row[key] for key in SCOPE_ROW_KEYS} for row in sub_games]
+    if profile.scope_carries_aggregate:
+        return {"game_id": game_id, "aggregate": aggregate, "sub_games": rows}
+    if not game_uid:
+        raise ValueError(
+            "settlement_scope 'uid' requires a game_uid in the preimage; "
+            "refusing to build one that cannot match the opponent's"
+        )
+    return {"game_id": game_id, "game_uid": game_uid, "sub_games": rows}
 
 
 def mutual_agreement_hash(scope: dict[str, Any], profile: InteropProfile = DEFAULT) -> str:
-    """The settlement hash: the dialect's settlement form over the trimmed scope.
-
-    Proven live cross-implementation under the kit dialect (SPEC section 6): the
-    spaced-form hash of this exact scope matched byte-for-byte between two
-    independent teams. A book-dialect pair matches on the compact form instead.
-    What never works is a pair that has not agreed which.
-    """
-    return consensus_signature(scope, profile)
+    """The settlement hash: the declared settlement form over the trimmed scope."""
+    # Proven live cross-implementation under the kit dialect (SPEC section 6).
+    # A book-dialect pair matches on the compact form instead, and the uid scope
+    # pins compact regardless of dialect. What never works is a pair that has
+    # not agreed which - that is rule #35, and a zero for both teams.
+    #
+    # Spelled out here rather than delegated to `consensus_signature` because
+    # that also signs the whole emailed report under the Hebrew key: routing the
+    # scope choice through it would silently change an artifact's spacing that
+    # nobody asked us to change.
+    separators = (
+        SPACED_SEPARATORS if profile.settlement_scope_spaced else CANONICAL_SEPARATORS
+    )
+    body = json.dumps(scope, sort_keys=True, ensure_ascii=False, separators=separators)
+    return hashlib.sha256(body.encode("utf-8")).hexdigest()

@@ -1,3 +1,29 @@
+# thief-agent — the THIEF agent
+
+This repository submits **the THIEF agent** for the Police-Thief P2P league
+(University of Haifa, "Orchestration of AI Agents", 2026). Its counterpart,
+[`police-agent`](https://github.com/Nell-Kh/police-agent), submits the other role; the two repos share one
+engine because the mutual audit requires each peer to re-verify the other's
+physics (the partition decision is documented in the report below).
+
+Run this peer:
+
+```
+uv run python -m police_thief peer --role thief
+```
+
+Gates: `uv run ruff check src scripts tests` and `uv run pytest` (coverage ≥85%).
+
+The submission is the annotated tag `v1.0-submission` on this branch's tip.
+The full commit-by-commit development history (both authors, original hashes -
+the `github_commit` stamps sealed in every game log resolve here) sits directly
+beneath this banner commit; the development story (branches, PRDs, PLAN, TODO -
+rule 9.4.1) is carried in `docs/`. This tree was assembled from the git index of
+the development repository, <https://github.com/Nell-Kh/police-thief-p2p>, by
+`scripts/split_repos.py`.
+
+---
+
 # Police-Thief P2P — Distributed Cops-and-Robbers over a Peer-to-Peer Network
 
 **Final project, "Orchestration of AI Agents" — Dept. of Computer Science, University of Haifa, 2026.**

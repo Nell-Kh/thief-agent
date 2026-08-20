@@ -29,8 +29,8 @@ always played, and we agree with you.
 
 **Updated commit SHAs** (the turn-order correction lands after the ones we sent):
 
-- Cop: `<REFRESH>`
-- Thief: `<REFRESH>`
+- Cop: 7843265d4c0e8539191f48cc779a3c685ad8750b
+- Thief: 03af6099e8726ba42f360c20d6ba8f300d0b3f8a
 
 Same branch `yanell11_vs_uoh-ay26` in both repos, pushed.
 

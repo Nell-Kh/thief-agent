@@ -1,0 +1,16 @@
+# Terminal T1 — fronts the POLICE process
+cloudflared tunnel --url http://127.0.0.1:8801
+
+# Terminal T2 — fronts the THIEF process
+cloudflared tunnel --url http://127.0.0.1:8802
+
+
+
+# Terminal 1 - police-agent
+uv run python -m police_thief peer --role police --wait 600 --linger 600
+CWD: c:\Users\yanal\OneDrive\Desktop\thief-agent
+
+
+# Terminal 2 - thief-agent
+uv run python -m police_thief peer --role thief --wait 600 --linger 600
+

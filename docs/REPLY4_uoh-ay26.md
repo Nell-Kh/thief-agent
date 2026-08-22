@@ -58,8 +58,8 @@ match yours; it is descriptive and read by no code on our side.
 **Our refreshed commit SHAs** (turn-order correction, then the contract change
 above — the second push is the binding one):
 
-- Cop: `<REFRESH>`
-- Thief: `<REFRESH>`
+- Cop: fe89f40f95071225580ec6851a57660a395fd706
+- Thief: adabe4b578db52443b989e99672fce8c8a9d132c
 
 ## Ready when you are
 

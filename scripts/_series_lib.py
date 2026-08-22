@@ -55,6 +55,26 @@ POLL_INTERVAL = 0.2
 #: processes by hand, minutes apart, and neither should have to go first.
 OPENING_WAIT_SECONDS = 120.0
 
+#: Floor on the patience for an opponent's FIRST turn/greeting/audit across a
+#: sequential g0N->g0(N+1) boundary, INDEPENDENT of ``--wait``. A one-driver
+#: opponent answers our negotiate the instant its endpoint is up, but its first
+#: real turn can be a whole opposite-role sub-game away while its driver crosses
+#: the boundary. uoh-ay26 (G010) declared a 1200s boundary window on their side
+#: for exactly this; if we wait less we time out a peer doing nothing wrong and
+#: turn a compliant handoff into a technical loss. This was the g03 hang on
+#: 2026-08-22: ``greeting_wait`` was ``max(180, --wait)``, ``--wait`` defaulted
+#: to ``OPENING_WAIT_SECONDS`` (120), so the first-turn window collapsed to 180s
+#: while their driver was still legitimately on g02. Coupling boundary patience
+#: to ``--wait`` was the bug - ``--wait`` governs a different thing (re-offering
+#: terms before kickoff). A generous ceiling is safe: a peer that is genuinely
+#: gone still becomes a contained technical loss, only later.
+FIRST_TURN_BOUNDARY_SECONDS = 1200.0
+
+#: How often a long boundary wait prints a still-alive line, so an operator does
+#: not mistake a healthy 1200s wait for a hang and kill it (2026-08-22: the wait
+#: was silent but for incidental HTTP logs, and was interrupted by hand twice).
+WAIT_HEARTBEAT_SECONDS = 30.0
+
 #: How long a turn or audit delivery keeps retrying a peer that has gone quiet,
 #: on top of the contract's three tries. Sized against the opponent's own
 #: ``TURN_WAIT_TIMEOUT``: long enough to ride out a tunnel reconnecting, short
@@ -192,20 +212,40 @@ def spoken_refusal(reply: Any) -> str:
     return ""
 
 
-def wait_for(predicate: Callable[[], Any], timeout: float, what: str) -> Any:
-    """Poll ``predicate`` until it returns non-None, or raise ``TimeoutError``."""
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
+def wait_for(predicate: Callable[[], Any], timeout: float, what: str,
+             announce: Callable[[str], None] | None = None,
+             heartbeat: float = WAIT_HEARTBEAT_SECONDS) -> Any:
+    """Poll ``predicate`` until it returns non-None, or raise ``TimeoutError``.
+
+    ``announce`` (when given) prints a still-waiting line every ``heartbeat``
+    seconds. A boundary wait can legitimately run for many minutes while a
+    sequential opponent finishes the other role's sub-game, and a silent poll
+    is indistinguishable from a wedged process - so an operator watching a bare
+    prompt reasonably kills it, which is exactly how the g03 wait died by hand
+    on 2026-08-22. The heartbeat makes "still waiting, on purpose" visible.
+    """
+    start = time.monotonic()
+    deadline = start + timeout
+    next_beat = start + heartbeat
+    while True:
+        now = time.monotonic()
+        if now >= deadline:
+            break
         value = predicate()
         if value is not None:
             return value
+        if announce is not None and now >= next_beat:
+            announce(f"  still waiting for {what} - {now - start:.0f}s / {timeout:.0f}s "
+                     f"(a sequential peer's boundary crossing can take this long)")
+            next_beat = now + heartbeat
         time.sleep(POLL_INTERVAL)
     raise TimeoutError(f"timed out after {timeout}s waiting for {what}")
 
 
 def play_networked(role: str, matchrt: MatchRuntime, client, handler: InboundHandler,
                    turn_wait: float = TURN_WAIT_TIMEOUT,
-                   first_turn_wait: float | None = None) -> None:
+                   first_turn_wait: float | None = None,
+                   announce: Callable[[str], None] | None = None) -> None:
     """Alternate turns with a real remote opponent - the thief always moves first.
 
     ``turn_wait`` is how long we allow the opponent for one turn. It belongs to
@@ -235,7 +275,8 @@ def play_networked(role: str, matchrt: MatchRuntime, client, handler: InboundHan
                 return
         incoming = wait_for(handler.next_turn, pending,
                             f"opponent's turn (sub-game {matchrt.book.sub_game}, "
-                            f"step {handler.next_step})")
+                            f"step {handler.next_step})",
+                            announce=announce)
         pending = turn_wait
         reply = matchrt.on_turn(incoming)
         if reply is not None:

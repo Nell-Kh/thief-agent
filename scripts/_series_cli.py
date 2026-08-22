@@ -45,6 +45,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--wait", type=float, default=OPENING_WAIT_SECONDS,
                         help="seconds to keep re-offering terms to an opponent that has "
                              "not started yet (the two-terminal gap)")
+    parser.add_argument("--first-turn-wait", type=float, default=0.0,
+                        help="seconds to allow the opponent for their FIRST turn/greeting/"
+                             "audit across a sequential sub-game boundary. Floored at "
+                             "FIRST_TURN_BOUNDARY_SECONDS (1200); raise it when a peer "
+                             "declares a longer boundary window than that. Independent of "
+                             "--wait, which governs re-offering terms before kickoff")
     parser.add_argument("--games-played", type=int, default=0,
                         help="counted games already played against this opponent (rule 37)")
     parser.add_argument("--series-label", default="",

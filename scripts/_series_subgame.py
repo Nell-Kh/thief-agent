@@ -14,6 +14,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from _series_lib import (
+    FIRST_TURN_BOUNDARY_SECONDS,
     NEGOTIATE_WAIT_TIMEOUT,
     ROOT,
     TURN_WAIT_TIMEOUT,
@@ -157,20 +158,28 @@ def _stage_next_handler(n: int, role: str, args, config: ConfigManager,
 
 
 def greeting_wait(args) -> float:
-    """How long to wait for the opponent's greeting/audit to arrive.
+    """How long to wait for the opponent's greeting/first turn/audit to arrive.
 
     The fixed 180s was fine against a peer that runs BOTH roles concurrently,
     but uoh-ay26 run ONE sequential driver that plays g01..g06 in order, so
     their other-role endpoint is reachable-but-not-playing until their driver
     reaches that sub-game. Our rule-1 split runs two processes that race ahead
     independently, so our g04 greeting-wait expired at 180s while their driver
-    was still on g03 - exactly the technical_loss G010 g04 took. We now wait as
-    long as we would for an unreachable peer (``--wait``), giving a sequential
-    opponent room to arrive at our window; a peer that is genuinely gone still
-    becomes a loss, only later. The outbound patience never covered this: their
-    endpoint answers instantly, so we sail past it into this inbound wait.
+    was still on g03 - exactly the technical_loss G010 g04 took.
+
+    We floor this at :data:`FIRST_TURN_BOUNDARY_SECONDS`, the boundary window
+    the opponent declared, so a sequential peer has room to arrive at our window
+    no matter what ``--wait`` is. Coupling this to ``--wait`` alone was itself a
+    bug: ``--wait`` defaults to 120, so ``max(180, --wait)`` gave a 180s window
+    unless the operator remembered to pass a big ``--wait`` - and the g03 wait
+    on 2026-08-22 collapsed to 180s and would have timed out their 1200s
+    boundary crossing. ``--first-turn-wait`` raises the floor further for a peer
+    that declares a longer one; ``--wait`` still counts, for the genuinely-late
+    case. A peer that is really gone still becomes a contained loss, only later.
     """
-    return max(NEGOTIATE_WAIT_TIMEOUT, float(getattr(args, "wait", 0.0) or 0.0))
+    return max(NEGOTIATE_WAIT_TIMEOUT, FIRST_TURN_BOUNDARY_SECONDS,
+               float(getattr(args, "first_turn_wait", 0.0) or 0.0),
+               float(getattr(args, "wait", 0.0) or 0.0))
 
 
 def _play(n: int, role: str, args, ids: tuple[str, str], us: str, handler: InboundHandler,
@@ -193,7 +202,8 @@ def _play(n: int, role: str, args, ids: tuple[str, str], us: str, handler: Inbou
         announce=lambda message: print(f"  {message}"),
     )
     wait_for(lambda: handler.opponent_terms, greeting_wait(args),
-             f"opponent's greeting for sub-game {n}")
+             f"opponent's greeting for sub-game {n}",
+             announce=lambda message: print(message))
     their_group = handler.opponent_terms.get("group_id")
     if their_group != args.opponent_group_id:
         raise RuntimeError(f"sub-game {n}: opponent declared group_id {their_group!r}, "
@@ -206,9 +216,17 @@ def _play(n: int, role: str, args, ids: tuple[str, str], us: str, handler: Inbou
 
     started_at = now_iso()
     turn_wait = turn_wait_for(config, args)
-    print(f"  allowing the opponent {turn_wait:.0f}s per turn (contract deadline)")
+    first_turn_wait = greeting_wait(args)
+    # State BOTH windows. The old line printed only ``turn_wait`` (180s), while
+    # the code silently waited ``first_turn_wait`` for the first turn - so an
+    # operator watching g03 saw "180s", saw nothing happen, and killed a wait
+    # that was working (2026-08-22). The first turn is the boundary crossing;
+    # every turn after it gets the contract's per-turn deadline.
+    print(f"  allowing the opponent up to {first_turn_wait:.0f}s for their FIRST turn "
+          f"(crossing their sub-game boundary), then {turn_wait:.0f}s per turn after")
     play_networked(role, matchrt, client, handler, turn_wait=turn_wait,
-                   first_turn_wait=greeting_wait(args))
+                   first_turn_wait=first_turn_wait,
+                   announce=lambda message: print(message))
     outcome_type = (matchrt.result or {}).get("type", "undecided")
     print(f"  settled locally: {outcome_type} after {matchrt.steps} steps"
           f" (our own move count: {matchrt.view.step})")
@@ -227,7 +245,8 @@ def _play(n: int, role: str, args, ids: tuple[str, str], us: str, handler: Inbou
     print(f"  sent our disclosure ({len(ours['records'])} records, "
           f"sender={ours['sender']}) -> peer replied {ack!r}")  # noqa: E501
     theirs = wait_for(lambda: handler.audit, greeting_wait(args),
-                      f"opponent's audit disclosure for sub-game {n}")
+                      f"opponent's audit disclosure for sub-game {n}",
+                      announce=lambda message: print(message))
     report = audit_disclosure(theirs, contract, **matchrt.audit_evidence())
     print(f"  our audit of their disclosure: {report.verdict}"
           + ("" if report.passed else f" - {report.violations}"))

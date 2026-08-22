@@ -22,6 +22,7 @@ import time
 from collections.abc import Callable
 from typing import Any
 
+from . import wire_trace
 from ..services.deadline import DeadlineTracker
 from ..shared.schema import NetworkConfig, RateLimiterConfig
 from .transport import Transport, TransportError
@@ -74,22 +75,34 @@ class PeerClient:
         patient_until = self._clock() + patience_sec
         last_error: Exception | None = None
         attempt = 0
+        # Best-effort, opt-in via PT_WIRE_TRACE; "" when tracing is off. Lets the
+        # trace name which endpoint each outbound call went to (their cop vs
+        # their thief), which is exactly what the g03 post-mortem was missing.
+        peer = (getattr(self._transport, "peer_url", "")
+                or getattr(self._transport, "url", "") or "")
+        step = payload.get("step") if isinstance(payload, dict) else None
         while True:
             attempt += 1
             label = f"{tool}#{attempt}"
             self._deadlines.start(label)
+            wire_trace.record("out", tool, peer=peer, step=step, result=f"attempt {attempt}")
             try:
                 reply = self._transport.send(tool, payload)
             except TransportError as error:
                 last_error = error
                 self._deadlines.clear()
+                wire_trace.record("out", f"{tool}:error", peer=peer, step=step,
+                                  error=f"{type(error).__name__}: {error}")
                 if attempt >= floor and self._clock() >= patient_until:
                     break
                 self._sleep(self._limits.retry_backoff_sec)
                 continue
             self._deadlines.check(label)
             self._deadlines.complete(label)
+            wire_trace.record("out", f"{tool}:ok", peer=peer, step=step, result=reply)
             return reply
+        wire_trace.record("out", f"{tool}:unreachable", peer=peer, step=step,
+                          error=str(last_error))
         raise PeerUnreachableError(
             f"{tool}: opponent unreachable after {attempt} attempts ({last_error})"
         )

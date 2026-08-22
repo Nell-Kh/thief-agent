@@ -12,8 +12,10 @@ adapter over the :class:`InboundHandler`, which holds all the logic.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
+from . import wire_trace
 from ..services.inbound import InboundHandler
 
 #: The tool names a peer exposes; the client calls these by name.
@@ -33,20 +35,46 @@ def build_server(handler: InboundHandler, name: str = "police_thief_peer") -> An
 
     mcp = FastMCP(name)
 
+    def _inbound(tool: str, message: Any, call: Callable[[], dict[str, Any]]) -> dict[str, Any]:
+        """Run one inbound tool, recording it to the wire trace either way.
+
+        Opt-in (``PT_WIRE_TRACE``); a no-op otherwise. Records the tool, the
+        sub-game this handler is bound to, and - for a turn - the step/sender we
+        were handed, so a stall after negotiation can be read off disk as "their
+        step-1 turn never arrived" vs "arrived and we rejected it", instead of
+        guessed. The exception is re-raised unchanged: tracing only observes.
+        """
+        sub_game = getattr(handler, "declared_sub_game", None)
+        step = message.get("step") if isinstance(message, dict) else None
+        # A turn carries ``sender``; a greeting carries ``role`` - trace whichever.
+        sender = None
+        if isinstance(message, dict):
+            sender = message.get("sender", message.get("role"))
+        wire_trace.record("in", tool, sub_game, step=step, sender=sender)
+        try:
+            reply = call()
+        except Exception as error:  # noqa: BLE001 - trace, then re-raise as-is
+            wire_trace.record("in", f"{tool}:error", sub_game, step=step,
+                              sender=sender, error=f"{type(error).__name__}: {error}")
+            raise
+        wire_trace.record("in", f"{tool}:ok", sub_game, step=step, sender=sender,
+                          result=reply)
+        return reply
+
     @mcp.tool
     def negotiate(message: dict[str, Any]) -> dict[str, Any]:
         """Open a match: exchange locked terms (contract, scent model, counts)."""
-        return handler.negotiate(message)
+        return _inbound("negotiate", message, lambda: handler.negotiate(message))
 
     @mcp.tool
     def receive_turn(message: dict[str, Any]) -> dict[str, Any]:
         """Receive one turn message; the turn token travels with it."""
-        return handler.receive_turn(message)
+        return _inbound("receive_turn", message, lambda: handler.receive_turn(message))
 
     @mcp.tool
     def submit_audit(payload: dict[str, Any]) -> dict[str, Any]:
         """Receive the opponent's full end-of-game disclosure."""
-        return handler.submit_audit(payload)
+        return _inbound("submit_audit", payload, lambda: handler.submit_audit(payload))
 
     @mcp.tool
     def receive_control(message: dict[str, Any]) -> dict[str, Any]:
@@ -55,7 +83,7 @@ def build_server(handler: InboundHandler, name: str = "police_thief_peer") -> An
         Every tool in this wire shape returns ``{"ok": True}``, so a refusal
         cannot be a return value; it arrives as a pushed control message.
         """
-        return handler.receive_control(message)
+        return _inbound("receive_control", message, lambda: handler.receive_control(message))
 
     return mcp
 

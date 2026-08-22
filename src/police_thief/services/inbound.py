@@ -17,6 +17,7 @@ from typing import Any
 
 from ..domain.negotiation import TermsRejectedError, validate_terms
 from ..domain.turnmsg import TurnMessage
+from ..infra import wire_trace
 from .turn_reorder import HandshakeRejectedError, TurnReorderBuffer
 
 __all__ = ["SERIES_CONSENSUS", "HandshakeRejectedError", "InboundHandler"]
@@ -132,7 +133,24 @@ class InboundHandler:
             raise HandshakeRejectedError(
                 f"expected a turn from {self._expect_role!r}, got {message.sender!r}"
             )
-        return self._reorder.accept(message)
+        # Record whether this turn actually joined the ready queue. The reorder
+        # buffer ACKs a step BELOW the one it is waiting for with {"ok": True}
+        # and then drops it (a legitimate de-dup) - which is indistinguishable
+        # on the wire from a turn that was queued. That silent-but-ok path is
+        # precisely how a first turn labelled with the wrong step can vanish
+        # while both sides believe it landed (G010 g03 post-mortem). The trace
+        # states the step we got, the step we were waiting for, and whether the
+        # ready queue grew - so "arrived but dropped" stops looking like success.
+        expected = self._reorder.next_step
+        queued_before = len(self._reorder.turns)
+        result = self._reorder.accept(message)
+        wire_trace.record(
+            "in", "receive_turn:queued", self.declared_sub_game,
+            step=message.step, sender=message.sender,
+            result=(f"expected_step={expected} queued={len(self._reorder.turns) > queued_before} "
+                    f"ready={len(self._reorder.turns)}"),
+        )
+        return result
 
     def receive_control(self, message: dict[str, Any]) -> dict[str, Any]:
         """Queue an out-of-band control message (enable/status/restart/quit).

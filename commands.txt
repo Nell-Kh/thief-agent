@@ -18,6 +18,7 @@ uv run python -m police_thief peer --role thief --wait 600 --linger 600
 Remove-Item -Force .git\index.lock -ErrorAction SilentlyContinue; echo "Lock removed"
 
 
+
 git commit -m "feat: add game configuration, update documentation, and provide git management commands"
 git push -u origin yanell11_vs_uoh-ay26
 git rev-parse HEAD          # the SHA to send them

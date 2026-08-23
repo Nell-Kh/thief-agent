@@ -1,22 +1,16 @@
-"""Best-effort, opt-in wire-level protocol trace.
+"""Wire-level protocol trace — on by default.
 
-Turned on ONLY when the environment variable ``PT_WIRE_TRACE`` names a file; when
-it is unset this module is inert and a run is byte-for-byte what it was before -
-so nothing here can change how a match plays, it can only record what happened.
+Writes one JSONL line per protocol event to ``logs/wire_g010.<pid>.jsonl`` under
+the repo root. ``PT_WIRE_TRACE=<path>`` overrides the location; ``PT_WIRE_TRACE=0``
+(or ``off``/``false``/``none``) disables it. It used to be opt-in via the env var,
+but across four G010 replays the variable was never set and every g04 stall went
+un-traced, so the default is now ON — the trace is the only thing that answers
+"did their turn reach us, get dropped, or never arrive?" from disk.
 
-Why it exists: a sub-game that stalls after negotiation used to leave no
-machine-readable account of *which* protocol call did or did not cross the wire.
-The FastMCP/uvicorn access log shows only ``POST /mcp`` - not the JSON-RPC tool
-name, not the sub-game, not the step - so "did their first turn arrive?" could
-not be answered from disk (G010 g03, 2026-08-22, uoh-ay26's protocol-trace
-request). Each side writes one JSONL line per protocol event:
-
-    {"ts": "<utc-iso>", "dir": "in|out", "tool": "...", "subgame": N,
-     "peer": "<url>", "step": N, "sender": "...", "result": ..., "error": ...}
-
+Each line: ``{ts, dir:in|out, tool, subgame, peer, step, sender, result|error}``,
 which reads directly as the ``timestamp | side | role | subgame | tool | peer |
-result/error`` table both teams asked for. A trace failure is swallowed: the
-game must never break because a log line could not be written.
+result/error`` table both teams want. A trace failure is swallowed: the game must
+never break because a log line could not be written.
 """
 
 from __future__ import annotations
@@ -25,10 +19,26 @@ import datetime
 import json
 import os
 import threading
+from pathlib import Path
 from typing import Any
 
-#: Resolved once, at import, from the launching shell's environment. Empty = off.
-_BASE = os.environ.get("PT_WIRE_TRACE", "").strip()
+_OFF = {"0", "off", "false", "no", "none"}
+_ENV = os.environ.get("PT_WIRE_TRACE", "").strip()
+
+if _ENV.lower() in _OFF:
+    _BASE = ""
+elif _ENV:
+    _BASE = _ENV
+else:
+    # Default ON. Repo root is three parents up from src/police_thief/infra/.
+    try:
+        _root = Path(__file__).resolve().parents[3]
+        _logs = _root / "logs"
+        _logs.mkdir(parents=True, exist_ok=True)
+        _BASE = str(_logs / "wire_g010")
+    except Exception:  # noqa: BLE001 - tracing must never break startup
+        _BASE = ""
+
 #: One file per process, so the two rule-1 halves never interleave into one file.
 _PATH = f"{_BASE}.{os.getpid()}.jsonl" if _BASE else ""
 _LOCK = threading.Lock()

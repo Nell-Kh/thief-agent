@@ -34,7 +34,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from _series_lib import ROOT, peer_repos  # noqa: E402
+from _series_lib import ROOT, inclusive_games, peer_repos  # noqa: E402
 from _series_report import auto_report  # noqa: E402
 from _series_subgame import load_config  # noqa: E402
 
@@ -61,6 +61,8 @@ def parse_args() -> argparse.Namespace:
                         help="the number THEY declared on the wire - each half prints it "
                              "when it exits; never a number you chose")
     parser.add_argument("--games-played", type=int, default=0)
+    parser.add_argument("--first-meeting", action="store_true",
+                        help="never had a valid counted game against THIS opponent before")
     parser.add_argument("--series-label", default="")
     parser.add_argument("--timezone", default="Asia/Jerusalem")
     parser.add_argument("--config-dir", default="")
@@ -114,8 +116,9 @@ def main() -> None:
         group_ids=[us, args.opponent_group_id], sub_games=rows,
         tie_score=config.contract.scoring.tie_score,
         games_played={us: args.games_played + (1 if args.counted else 0),
-                      args.opponent_group_id: args.opponent_games_played},
-        first_meeting=args.games_played == 0, counted=args.counted, recipient=recipient,
+                      args.opponent_group_id: inclusive_games(
+                          args.opponent_games_played, args.counted)},
+        first_meeting=args.first_meeting, counted=args.counted, recipient=recipient,
     )
     validate_result_payload(result, tie_score=config.contract.scoring.tie_score)
     out = Path(args.out or Path(args.halves[0]).parent / f"friendly_{ids[0]}")

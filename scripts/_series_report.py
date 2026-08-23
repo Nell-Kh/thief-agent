@@ -251,5 +251,5 @@ def series_result(args, ids, us, links, rows, config, their_games, recipient) ->
             us: args.games_played + (1 if args.counted else 0),
             args.opponent_group_id: inclusive_games(their_games, args.counted),
         },
-        first_meeting=args.games_played == 0, counted=args.counted, recipient=recipient,
+        first_meeting=args.first_meeting, counted=args.counted, recipient=recipient,
     )

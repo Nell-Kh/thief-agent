@@ -46,7 +46,11 @@ def parse_args() -> argparse.Namespace:
                         help="seconds to keep re-offering terms to an opponent that has "
                              "not started yet (the two-terminal gap)")
     parser.add_argument("--games-played", type=int, default=0,
-                        help="counted games already played against this opponent (rule 37)")
+                        help="our total counted games played across the whole league so far, "
+                             "not counting this one")
+    parser.add_argument("--first-meeting", action="store_true",
+                        help="set when we have never had a valid mutually-confirmed counted "
+                             "game against THIS SPECIFIC opponent before")
     parser.add_argument("--series-label", default="",
                         help="a label distinguishing THIS series from every other against "
                              "the same opponent, agreed with them in writing (e.g. "

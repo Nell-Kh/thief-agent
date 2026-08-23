@@ -213,6 +213,7 @@ def _play(n: int, role: str, args, ids: tuple[str, str], us: str, handler: Inbou
         n=n, role=role, expect_role=expect_role, us=us, opponent=args.opponent_group_id,
         outcome_type=outcome_type, passed=report.passed, steps=matchrt.steps,
         tokens=matchrt.ledger.total, our_commit=git_head(), their_disclosure=theirs,
+        their_declared_commit=str(handler.opponent_terms.get("step0_commit") or ""),
         started_at=started_at, game_id=game_id,
         scores=(score_for(contract, outcome_type, role),
                 score_for(contract, outcome_type, expect_role)),

@@ -46,6 +46,7 @@ def keep_opponent_disclosure(artifacts: Path, game_id: str, n: int,
 def score_row(*, n: int, role: str, expect_role: str, us: str, opponent: str,
               outcome_type: str, passed: bool, steps: int, tokens: int,
               our_commit: str, their_disclosure: dict[str, Any],
+              their_declared_commit: str = "",
               started_at: str, scores: tuple[int, int], game_id: str) -> dict[str, Any]:
     """One sub-game's league row, every field measured or derived.
 
@@ -66,7 +67,9 @@ def score_row(*, n: int, role: str, expect_role: str, us: str, opponent: str,
         "started_at": started_at, "ended_at": now_iso(),
         "result": "tamper_forfeit" if not passed else outcome_type,
         "winner_group": winner, "tie": tie, "steps": steps,
-        "github_commit": {us: our_commit, opponent: opponent_commit(their_disclosure)},
+        "github_commit": {us: our_commit,
+                          opponent: opponent_commit(their_disclosure,
+                                                    their_declared_commit)},
         "tokens": {us: tokens, opponent: 0},
         "score": {us: score_us, opponent: score_them},
         "log_files": {us: log_name, opponent: log_name},

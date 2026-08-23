@@ -109,7 +109,7 @@ def _step_zero_commit(record: dict[str, Any]) -> str:
     return str(fields.get("github_commit") or "")
 
 
-def opponent_commit(disclosure: dict[str, Any] | None) -> str:
+def opponent_commit(disclosure: dict[str, Any] | None, declared: str = "") -> str:
     """The opponent's git SHA, read out of the Step-0 record it just revealed.
 
     Rule #53 asks both sides to record the commit each sub-game was played on,
@@ -128,4 +128,4 @@ def opponent_commit(disclosure: dict[str, Any] | None) -> str:
         commit = _step_zero_commit(record)
         if commit:
             return commit
-    return "unknown"
+    return str(declared or "") or "unknown"

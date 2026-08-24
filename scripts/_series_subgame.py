@@ -153,6 +153,19 @@ def _stage_next_handler(n: int, role: str, args, config: ConfigManager,
     handler_box.pending = build_handler(config, other_role(role), n + 1)
 
 
+def _declared_github_commit(greeting) -> str:
+    """A peer's repository HEAD as declared on the wire, if it declares one.
+
+    NOT ``step0_commit`` - that is the seal of the Step-0 record, 64 hex and
+    per-sub-game. Only a field actually named ``github_commit`` counts, at the
+    greeting root or inside ``identity``.
+    """
+    if not isinstance(greeting, dict):
+        return ""
+    identity = greeting.get("identity")
+    nested = identity.get("github_commit") if isinstance(identity, dict) else None
+    return str(greeting.get("github_commit") or nested or "")
+
 def _play(n: int, role: str, args, ids: tuple[str, str], us: str, handler: InboundHandler,
           handler_box: SwappableHandler, matchrt: MatchRuntime, client: PeerClient,
           artifacts: Path, links: dict[str, Any], recipient: str,
@@ -213,7 +226,7 @@ def _play(n: int, role: str, args, ids: tuple[str, str], us: str, handler: Inbou
         n=n, role=role, expect_role=expect_role, us=us, opponent=args.opponent_group_id,
         outcome_type=outcome_type, passed=report.passed, steps=matchrt.steps,
         tokens=matchrt.ledger.total, our_commit=git_head(), their_disclosure=theirs,
-        their_declared_commit=str(handler.opponent_terms.get("step0_commit") or ""),
+        their_declared_commit=_declared_github_commit(handler.opponent_terms),
         started_at=started_at, game_id=game_id,
         scores=(score_for(contract, outcome_type, role),
                 score_for(contract, outcome_type, expect_role)),

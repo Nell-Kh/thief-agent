@@ -109,6 +109,19 @@ def _step_zero_commit(record: dict[str, Any]) -> str:
     return str(fields.get("github_commit") or "")
 
 
+def _looks_like_git_sha(value: str) -> bool:
+    """Whether ``value`` can be a git commit: 40 hex characters, nothing else.
+
+    A peer's ``step0_commit`` is the COMMITMENT SEAL of its Step-0 record -
+    64 hex, and different every sub-game - not its repository HEAD, which
+    rides inside that record as ``github_commit``. bestteam (2026-08-24) filed
+    our seals as our commits because the field name reads like the latter, and
+    our own fallback would have done the same to them. Shape is the cheapest
+    guard: a 64-character value is never a git SHA, so it is refused and the
+    row says "unknown" honestly instead.
+    """
+    return len(value) == 40 and all(c in "0123456789abcdef" for c in value.lower())
+
 def opponent_commit(disclosure: dict[str, Any] | None, declared: str = "") -> str:
     """The opponent's git SHA, read out of the Step-0 record it just revealed.
 
@@ -128,4 +141,5 @@ def opponent_commit(disclosure: dict[str, Any] | None, declared: str = "") -> st
         commit = _step_zero_commit(record)
         if commit:
             return commit
-    return str(declared or "") or "unknown"
+    candidate = str(declared or "")
+    return candidate if _looks_like_git_sha(candidate) else "unknown"

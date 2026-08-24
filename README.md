@@ -24,6 +24,7 @@ conformance chapter, and an honest self-grade of the code.
 7. [Strategy generation 2 — wall cop, red team, hybrid frontier](#6-strategy-generation-2--wall-cop-red-team-hybrid-frontier)
 8. [The verbal layer & deception economics](#7-the-verbal-layer--deception-economics)
 9. [Interop chapter — the kit, the vectors, the bytes we fixed](#8-interop-chapter--the-kit-the-vectors-the-bytes-we-fixed)
+    - [8.4 League results — what six live opponents caught](#84-league-results--what-six-live-opponents-caught-that-vectors-could-not)
 10. [Results tables](#9-results-tables-reproduced-from-notebooksanalysisipynb)
 11. [Screenshots](#10-screenshots)
 12. [Cross-repo links](#11-cross-repo-links)
@@ -495,6 +496,54 @@ own `verify_vectors.py` holds itself to.
   own guess at "reasonable" wire behavior, which is exactly the point of an interop kit: it
   replaces mutual guessing about edge cases with a shared, testable ground truth.
 
+### 8.4 League results — what six live opponents caught that vectors could not
+
+Six counted series against six independently-authored implementations. Every one settled with
+**both teams filing the identical `mutual_agreement.sha256`**, and in each case we re-derived the
+opponent's hash from *their own filed rows* using *our* code rather than accepting their number.
+
+| # | Date | Opponent | Result | Settlement agreed |
+|---|------|----------|--------|-------------------|
+| 1 | 2026-08-17 | `sharNamr`  | 77–77 (series tie, ADD award) | yes |
+| 2 | 2026-08-23 | `yamanagh`  | 90–30 | yes |
+| 3 | 2026-08-24 | `amirmtan`  | 90–30 | yes |
+| 4 | 2026-08-24 | `bestteam`  | 90–30 | yes |
+| 5 | 2026-08-24 | `uoh-ay26`  | 90–30 | yes |
+| 6 | 2026-08-24 | `nis-yar1`  | 90–30 | yes |
+
+Five wins, one draw, no losses. The draw is the only series that exercised the ADD tie award on
+live data: 75 + `tie_score` = 77 for both sides, `winner_group: null`, and therefore no diversity
+award — the exact branch the sealed vector was built to test.
+
+**The defects live play found that byte-exact vectors could not.** Every item below is a real
+failure, and none of them is a serialization bug — which is the finding. Vectors prove two
+implementations agree about *bytes*; they say nothing about whether the two processes will ever
+exchange those bytes.
+
+| Class | What happened | Why vectors missed it |
+|---|---|---|
+| **Turn-order deadlock** | A peer polled for the opponent's move instead of initiating its own. Both sides waited out the 180 s deadline; the series died at sub-game 1. Hit twice, by two teams. | The initiative rule (*the thief opens every sub-game*) is a property of the driver loop, not of any serialized artifact. |
+| **Strict envelope parsing** | A peer's `AuditPayload` model forbade unknown top-level keys and silently dropped our whole disclosure on `result_detail` — before verification ran, surfacing as an apparent transport failure. | The kit's fixtures pin what a payload *must* contain, never that a parser must tolerate what it does not recognise. |
+| **Over-strict handshake lock** | A peer treated the unsealed, unhashed `scent_model_sha256` as a mandatory equality lock and silently refused every negotiation. | The field is deliberately outside the signed terms; no vector constrains how a peer may *react* to a field it is not required to compare. |
+| **Key-name collision** | One side declared `games_played`, the other read `counted_games_played`; both files recorded `null` for the opponent, symmetrically. | Bookkeeping fields sit outside the hashed scope, so both files were internally valid and byte-correct. |
+| **Seal filed as commit** | Two teams filed our 64-hex per-sub-game `step0_commit` into the 40-hex `github_commit` slot. We had briefly shipped the same confusion ourselves. | Both are hex strings in adjacent fields; no vector pins their provenance. |
+| **Unread opponent tokens** | Peers filed our token counts as `0` rather than reading `tokens_total` from the last record of our disclosure. | Per-side facts are excluded from the settlement scope by design, so a wrong value never breaks a hash. |
+| **Watchdog vs contract deadline** | A peer added a 15 s first-turn kill-switch that would have scored a compliant opponent a technical loss whenever an LLM call ran long. | Timing is a contract term, not a wire format. |
+
+The through-line: **byte-level conformance is necessary and nowhere near sufficient.** Five of the
+seven classes above live in the gap between "the bytes are right" and "the two processes make
+progress" — turn order, parser tolerance, handshake strictness, timing. Our own contribution to
+that list (the `step0_commit` confusion) was caught by an opponent, which is the argument for
+playing a friendly before every counted series rather than trusting a vector suite.
+
+**Method that made the diagnosis cheap.** Two habits did most of the work. First, when two hashes
+disagreed we asked for the opponent's *preimage string with its length*, never their hash — two
+hashes tell you nothing, two strings locate the difference in a minute. That found a substituted
+`game_id` that happened to be the same character count, so even the length matched. Second, we
+published one conformance vector *with* its answer for debugging, then a second **sealed** vector
+whose answer we withheld: a test whose answer was printed on the question paper cannot distinguish
+"implemented it" from "read it."
+
 ### 8.1 The declared contradiction: which reading of the book we speak
 
 The rulebook's front matter says nothing binds unless it says so, and its
@@ -768,21 +817,25 @@ questions for the opponent rather than silently assuming agreement. Evidence:
 `test_preflight.py`.
 
 **What none of this is.** These are engineering decisions, not results. Rule #55 restricts
-self-grading to code quality, and the honest summary is that all five are defences whose value
-is *unproven in league conditions* until the counted series in `docs/TODO.md` §11.3 are played
-against real opponents. Four of the five were written after a failure we actually hit; the fifth
-(#4) was written after an external review found the misconfiguration it guards.
+self-grading to code quality. Four of the five were written after a failure we actually hit; the
+fifth (#4) was written after an external review found the misconfiguration it guards. All five
+have now been exercised in league conditions across six counted series (§8.4) — #4 in particular
+fired for real when a friendly was mis-addressed, and the split-as-filter architecture (#1) held
+under six independent opponents' audits without a single contradictory report.
 
 ## 13. Limitations & future work
 
-- **Report alignment (kit §6, `docs/TODO.md` §8.14) is open.** Consensus signature
-  serialization, trimmed mutual-agreement scope, and league bookkeeping fields (tie/diversity
-  handling, `games_played_including_this`) are designed but not yet cross-checked against the
-  kit's own example result file.
-- **No live sparring run against the kit's reference peer yet** (`docs/TODO.md` §8.15) — our
-  conformance today is vector-level (static, byte-exact) rather than a live six-sub-game exchange
-  with a second, independently-authored implementation; that is the strongest remaining
-  correctness signal we have not yet collected.
+- **Report alignment (kit §6) is closed.** Consensus signature serialization, the trimmed
+  mutual-agreement scope, and the league bookkeeping fields (tie/diversity handling,
+  `games_played_including_this`) are no longer vector-only: they were cross-checked against six
+  independently-authored opponents' filed reports, and in every counted series both teams filed
+  the identical settlement `sha256` (§8.4). The residual risk is not our serialization but the
+  *bookkeeping* fields, where two opponents disagreed with us about their own declared game count.
+- **Live conformance is now collected — six times over.** What was the strongest missing
+  correctness signal (a live six-sub-game exchange against a second, independently-authored
+  implementation) has been obtained against six separate teams, each with its own codebase,
+  language conventions and interpretation of the book. Conformance is no longer vector-level
+  only. What the vectors could *not* catch, and live play did, is catalogued in §8.4.
 - **The hybrid cop is a documented dead end, not a live trade-off.** Under perfect information it
   trades speed for a measurable loss rate against our strongest evader; under belief it loses the
   speed too (§6), leaving no opponent class that prefers it. The open question it leaves is the

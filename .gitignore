@@ -67,3 +67,4 @@ instruction/*.pdf
 # be submitted with no evidence beside it. Name the noise instead.
 results/rehearsal*/
 results/*demo*
+.env.save

@@ -77,4 +77,4 @@ recipient = "rmisegal+uoh26finalgame@gmail.com"
 # rehearsal state, so no demo, sparring run or accidental invocation can mail
 # the lecturer. Flip to "send" as a deliberate step when starting a COUNTED
 # series (docs/TODO.md 11.3.2) and flip it back afterwards.
-mode = "send"
+mode = "draft"

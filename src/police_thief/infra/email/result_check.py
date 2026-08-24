@@ -21,6 +21,7 @@ from .consensus import (
     series_aggregate,
     settlement_confirmed,
 )
+from .reports import settlement_game_id
 
 
 class ResultInconsistencyError(ValueError):
@@ -73,7 +74,13 @@ def validate_result_payload(
                 f"!= row sum {summed}"
             )
 
-    scope = mutual_agreement_scope(result["game_id"], rows, expected)
+    scope = mutual_agreement_scope(
+        settlement_game_id(result["game_id"], profile),
+        rows,
+        expected,
+        game_uid=result.get("game_uid", ""),
+        profile=profile,
+    )
     recomputed = mutual_agreement_hash(scope, profile)
     claimed = result.get("mutual_agreement", {}).get("sha256")
     if claimed != recomputed:

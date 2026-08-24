@@ -53,6 +53,10 @@ def parse_args() -> argparse.Namespace:
                              "--wait, which governs re-offering terms before kickoff")
     parser.add_argument("--games-played", type=int, default=0,
                         help="counted games already played against this opponent (rule 37)")
+    parser.add_argument("--first-meeting", choices=["auto", "yes", "no"], default="auto",
+                        help="first counted meeting between the two groups; 'auto' derives "
+                             "it from --games-played==0, 'yes'/'no' declares it per-opponent "
+                             "(decoupled from your global counted-game count)")
     parser.add_argument("--series-label", default="",
                         help="a label distinguishing THIS series from every other against "
                              "the same opponent, agreed with them in writing (e.g. "

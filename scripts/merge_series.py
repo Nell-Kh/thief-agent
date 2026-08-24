@@ -61,6 +61,10 @@ def parse_args() -> argparse.Namespace:
                         help="the number THEY declared on the wire - each half prints it "
                              "when it exits; never a number you chose")
     parser.add_argument("--games-played", type=int, default=0)
+    parser.add_argument("--first-meeting", choices=["auto", "yes", "no"], default="auto",
+                        help="first counted meeting between the two groups; 'auto' derives "
+                             "it from --games-played==0, 'yes'/'no' declares it per-opponent "
+                             "(decoupled from your global counted-game count)")
     parser.add_argument("--series-label", default="")
     parser.add_argument("--timezone", default="Asia/Jerusalem")
     parser.add_argument("--config-dir", default="")
@@ -111,13 +115,29 @@ def main() -> None:
         print(f"\n{alarm}")
     result = result_payload(
         game_uid=ids[1], game_id=ids[0], links=links, timezone=args.timezone,
-        group_ids=[us, args.opponent_group_id], sub_games=rows,
+        # Sorted, so our `groups` list matches what an opponent files (cosmetic,
+        # outside the settlement hash - verified hash-neutral).
+        group_ids=sorted([us, args.opponent_group_id]), sub_games=rows,
         tie_score=config.contract.scoring.tie_score,
         games_played={us: args.games_played + (1 if args.counted else 0),
                       args.opponent_group_id: args.opponent_games_played},
-        first_meeting=args.games_played == 0, counted=args.counted, recipient=recipient,
+        first_meeting=(
+            args.games_played == 0
+            if getattr(args, "first_meeting", "auto") == "auto"
+            else getattr(args, "first_meeting", "auto") == "yes"
+        ),
+        counted=args.counted, recipient=recipient,
+        # Honour the configured settlement dialect. Without this the filer fell
+        # back to the module DEFAULT (kit) and filed a kit-scope hash even though
+        # config declares settlement_scope = "uid" - which is exactly what forked
+        # G010 (ours kit b7f11304, uoh-ay26 uid b34f8e46). For a COUNTED series
+        # that fork is rule #35, a zero for BOTH teams; the config is the single
+        # source of truth for which preimage both sides must agree on.
+        profile=config.interop,
     )
-    validate_result_payload(result, tie_score=config.contract.scoring.tie_score)
+    validate_result_payload(
+        result, tie_score=config.contract.scoring.tie_score, profile=config.interop
+    )
     out = Path(args.out or Path(args.halves[0]).parent / f"friendly_{ids[0]}")
     out.mkdir(parents=True, exist_ok=True)
     path = write_lifecycle_file(out, result_file_name(ids[0]), result)

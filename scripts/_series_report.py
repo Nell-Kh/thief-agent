@@ -245,11 +245,20 @@ def series_result(args, ids, us, links, rows, config, their_games, recipient) ->
 
     return result_payload(
         game_uid=ids[1], game_id=ids[0], links=links, timezone=args.timezone,
-        group_ids=[us, args.opponent_group_id], sub_games=rows,
+        group_ids=sorted([us, args.opponent_group_id]), sub_games=rows,
         tie_score=config.contract.scoring.tie_score,
         games_played={
             us: args.games_played + (1 if args.counted else 0),
             args.opponent_group_id: inclusive_games(their_games, args.counted),
         },
-        first_meeting=args.games_played == 0, counted=args.counted, recipient=recipient,
+        first_meeting=(
+            args.games_played == 0
+            if getattr(args, "first_meeting", "auto") == "auto"
+            else getattr(args, "first_meeting", "auto") == "yes"
+        ),
+        counted=args.counted, recipient=recipient,
+        # Same settlement-dialect fix as merge_series: file under the CONFIGURED
+        # scope, not the kit DEFAULT, so the unsplit driver cannot fork the hash
+        # against a uid opponent (G010 post-mortem, 2026-08-24).
+        profile=config.interop,
     )

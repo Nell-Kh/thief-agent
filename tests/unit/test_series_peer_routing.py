@@ -47,6 +47,53 @@ def test_a_spoken_no_is_a_refusal_never_a_success() -> None:
     assert spoken_refusal({"error": "terms mismatch"}) == "terms mismatch"
 
 
+class _RecordingClient:
+    """A PeerClient stand-in that records greetings and replays one reply."""
+
+    def __init__(self, reply: object = None, error: Exception | None = None) -> None:
+        self.reply = reply
+        self.error = error
+        self.calls: list[dict] = []
+
+    def negotiate(self, greeting: dict) -> object:
+        self.calls.append(greeting)
+        if self.error is not None:
+            raise self.error
+        return self.reply
+
+
+def test_reaffirm_greeting_resends_when_the_opponents_greeting_lands() -> None:
+    """G010 g03, 2026-08-23: a greeting sent minutes early against a sequential
+    peer is re-offered once theirs arrives, or the two sides deadlock."""
+    from _series_lib import reaffirm_greeting
+
+    greeting = {"game_id": "g", "role": "police", "group_id": "yanell11"}
+    client = _RecordingClient(reply={"accepted": True, "terms": {}})
+    assert reaffirm_greeting(client, greeting) is True
+    assert client.calls == [greeting]  # the fresh offer actually went out
+
+
+def test_reaffirm_greeting_swallows_an_unreachable_peer() -> None:
+    """Best-effort: the first offer may have landed, so a dead re-offer must not
+    fail a sub-game that has already negotiated and is about to play."""
+    from _series_lib import reaffirm_greeting
+
+    from police_thief.infra.mcp_client import PeerUnreachableError
+
+    notes: list[str] = []
+    client = _RecordingClient(error=PeerUnreachableError("boom"))
+    assert reaffirm_greeting(client, {"x": 1}, announce=notes.append) is False
+    assert notes and "first offer" in notes[0]
+
+
+def test_reaffirm_greeting_swallows_a_bare_refusal() -> None:
+    """A reasonless no on the re-offer is not fatal - the original stands."""
+    from _series_lib import reaffirm_greeting
+
+    client = _RecordingClient(reply={"ok": False})
+    assert reaffirm_greeting(client, {"x": 1}) is False
+
+
 def _box(current_number: int, pending: object | None = None):
     """A SwappableHandler whose active handler refuses everything by sub-game."""
     from _series_lib import SwappableHandler

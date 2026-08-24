@@ -23,6 +23,7 @@ from _series_lib import (
     negotiate_patiently,
     other_role,
     play_networked,
+    reaffirm_greeting,
     score_for,
     wait_for,
 )
@@ -192,18 +193,27 @@ def _play(n: int, role: str, args, ids: tuple[str, str], us: str, handler: Inbou
     our_terms = terms_from_contract(contract)
     print(f"\n=== sub-game {n}: we are {role} (opponent {expect_role}) ===")
     print(f"  dialling their {expect_role} at {peer_url_for(args, role)}")
+    greeting = {**build_terms(config, peer_id=us, games_played=args.games_played,
+                              sub_game=n, step0_commit=matchrt.step0_commit,
+                              git_commit_hash=git_head()),
+                "game_uid": ids[1], "game_id": ids[0]}
     negotiate_patiently(
-        client,
-        {**build_terms(config, peer_id=us, games_played=args.games_played,
-                       sub_game=n, step0_commit=matchrt.step0_commit,
-                       git_commit_hash=git_head()),
-         "game_uid": ids[1], "game_id": ids[0]},
+        client, greeting,
         wait_seconds=args.wait,
         announce=lambda message: print(f"  {message}"),
     )
     wait_for(lambda: handler.opponent_terms, greeting_wait(args),
              f"opponent's greeting for sub-game {n}",
              announce=lambda message: print(message))
+    # Their greeting proves their (possibly sequential) driver has NOW reached
+    # this sub-game. Our own greeting may have gone out minutes earlier, against
+    # a handler they had not built and on a session the idle boundary crossing
+    # has since reaped - so re-affirm it here, on a fresh session, or a peer
+    # waiting for our greeting deadlocks against our wait for its first turn
+    # (G010 g03, 2026-08-23). Best-effort: if the first offer already landed this
+    # is a harmless duplicate; handler.negotiate is idempotent.
+    if reaffirm_greeting(client, greeting, announce=lambda message: print(f"  {message}")):
+        print(f"  re-affirmed our greeting for sub-game {n} on a fresh session")
     their_group = handler.opponent_terms.get("group_id")
     if their_group != args.opponent_group_id:
         raise RuntimeError(f"sub-game {n}: opponent declared group_id {their_group!r}, "

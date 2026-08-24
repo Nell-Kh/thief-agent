@@ -185,6 +185,40 @@ def negotiate_patiently(client, greeting: dict[str, Any],
         sleep(REOFFER_PAUSE_SECONDS)
 
 
+def reaffirm_greeting(client, greeting: dict[str, Any],
+                      announce: Callable[[str], None] = lambda _message: None) -> bool:
+    """Re-send our greeting once the opponent has proven it is on this sub-game.
+
+    A rule-1 split process dials the NEXT window the instant the previous one
+    settles, so against a one-driver opponent that plays g01..g06 in order our
+    opening greeting is sent minutes early - queued against a handler the
+    opponent has not built yet, on a held-open session the idle boundary
+    crossing then reaps. The opponent's OWN greeting arriving is the proof its
+    driver has finally reached this sub-game, so we re-offer ours on the fresh
+    session that receiving theirs implies. Without it a peer waiting for our
+    (lost) greeting and our driver waiting for its first turn deadlock until the
+    first-turn floor expires as a technical loss - G010 g03, 2026-08-23:
+    negotiated both directions at the boundary, then silence for the whole 1200s
+    window while each side waited on the other.
+
+    Best-effort by design. The first offer may well have landed, so an
+    unreachable peer or a refusal here is announced and swallowed rather than
+    allowed to fail a sub-game that has already negotiated and is about to play;
+    :func:`play_networked`'s own retry owns the turns that follow. Returns
+    whether the re-offer was delivered clean, for the caller's log only.
+    """
+    try:
+        reply = client.negotiate(greeting)
+    except PeerUnreachableError as error:
+        announce(f"could not re-affirm our greeting ({error}); relying on the first offer")
+        return False
+    refusal = spoken_refusal(reply)
+    if refusal:
+        announce(f"re-affirmed greeting not accepted ({refusal}); relying on the first offer")
+        return False
+    return True
+
+
 def spoken_refusal(reply: Any) -> str:
     """The opponent's stated refusal inside a negotiate reply, or ``""``.
 

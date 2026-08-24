@@ -89,6 +89,16 @@ def take_turn(
             style=style,
         )
     )
+    # Compute the public declarations ONCE, seal them, then send the identical
+    # values on the wire - so the disclosed log carries the same capture claim /
+    # answer / survival claim / barrier the opponent saw in cleartext, bound by
+    # the commit (uoh-ay26 G010 audit, 2026-08-24: claim on the wire, absent from
+    # the sealed evidence).
+    survived = view.step >= contract.movement.survival_threshold
+    barrier_placed = list(barrier) if barrier is not None else None
+    capture_claim = list(view.position) if view.role == "police" else None
+    claim_response = answer_claim(view)
+    win_claim = {"type": "survival"} if view.role == "thief" and survived else None
     record = book.append(
         turn_record(
             step=view.step,
@@ -101,20 +111,23 @@ def take_turn(
             hint=hint,
             tokens_step=ledger.total - tokens_before,
             tokens_total=ledger.total,
+            capture_claim=capture_claim,
+            claim_response=claim_response,
+            win_claim=win_claim,
+            barrier_placed=barrier_placed,
         )
     )
     view.note(f"step {view.step}: played {action.move} ({intent})")
-    survived = view.step >= contract.movement.survival_threshold
     return TurnMessage(
         step=view.step,
         sender=view.role,
         hint=hint,
         smell_grid=encode_scent(view.my_scent.snapshot()),
         commit=record["commit"],
-        barrier_placed=list(barrier) if barrier is not None else None,
-        capture_claim=list(view.position) if view.role == "police" else None,
-        claim_response=answer_claim(view),
-        win_claim={"type": "survival"} if view.role == "thief" and survived else None,
+        barrier_placed=barrier_placed,
+        capture_claim=capture_claim,
+        claim_response=claim_response,
+        win_claim=win_claim,
     )
 
 

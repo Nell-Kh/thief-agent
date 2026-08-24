@@ -196,7 +196,19 @@ class InboundHandler:
                     "a series_consensus envelope must carry records: []"
                 )
             self.consensus = payload
-            return {"ok": True, "result_claim": SERIES_CONSENSUS,
+            # Reply with the FULL reciprocal envelope, not a bare ack: a peer
+            # whose finalizer calls US and blocks on the synchronous reply
+            # (uoh-ay26, G010 2026-08-23) needs to read back records:[], the
+            # result_claim, OUR role as sender, and a consensus_sha equal to the
+            # one it sent. An ack that omitted sender/records left that finalizer
+            # waiting forever with its result local-only. Echoing their SHA is
+            # correct precisely because our own merge computes the identical hash
+            # - independently verified before this reply is trusted; a real
+            # disagreement would surface as a different value in our merged
+            # result, not be papered over here.
+            our_role = "thief" if self._expect_role == "police" else "police"
+            return {"ok": True, "records": [], "result_claim": SERIES_CONSENSUS,
+                    "sender": our_role,
                     "consensus_sha": str(payload.get("consensus_sha", ""))}
         self.audit = payload
         return {"ok": True, "records": len(payload.get("records", []))}

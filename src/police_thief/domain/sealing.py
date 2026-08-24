@@ -57,15 +57,30 @@ def turn_record(
     hint: str,
     tokens_step: int,
     tokens_total: int,
+    capture_claim: list[int] | None = None,
+    claim_response: dict[str, Any] | None = None,
+    win_claim: dict[str, Any] | None = None,
+    barrier_placed: list[int] | None = None,
 ) -> dict[str, Any]:
     """One turn's full truth, sealed before the turn message is sent.
 
     The position and move live ONLY here - the wire carries just the hash -
     which is what makes the end-of-game audit meaningful.
+
+    The public declarations that ALSO travel on the wire - a capture claim, the
+    answer to one, a survival claim, the cell a barrier was placed on - are
+    sealed here too, so the disclosed log an opponent audits carries the same
+    claims it received in cleartext, now bound by the commitment and
+    reveal-verifiable (rulebook 3.4.4/3.4.5, rule #21). uoh-ay26 (G010,
+    2026-08-24) audited three of our captures, found the barrier-trap legal but
+    the capture claim absent from the sealed evidence - it was on our wire and
+    never logged. Each field is included ONLY when present, so a turn that
+    declares nothing keeps its original preimage byte-for-byte, and a peer
+    recomputes the commit over exactly the fields the record carries.
     """
     from .state_summary import state_summary
 
-    return {
+    record: dict[str, Any] = {
         "step": step,
         "role": role,
         "type": "turn",
@@ -77,6 +92,15 @@ def turn_record(
         "tokens_step": tokens_step,
         "tokens_total": tokens_total,
     }
+    for key, value in (
+        ("capture_claim", capture_claim),
+        ("claim_response", claim_response),
+        ("win_claim", win_claim),
+        ("barrier_placed", barrier_placed),
+    ):
+        if value is not None:
+            record[key] = value
+    return record
 
 
 def sealed(payload: dict[str, Any]) -> dict[str, Any]:

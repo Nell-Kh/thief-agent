@@ -91,8 +91,15 @@ class InboundHandler:
         """
         if self.opponent_terms is None:
             return None
-        declared = self.opponent_terms.get("counted_games_played")
-        return int(declared) if isinstance(declared, int) else None
+        for key in ("counted_games_played", "games_played"):
+            declared = self.opponent_terms.get(key)
+            if isinstance(declared, bool):
+                continue
+            if isinstance(declared, int):
+                return int(declared)
+            if isinstance(declared, str) and declared.strip().lstrip("-").isdigit():
+                return int(declared.strip())
+        return None
 
     def negotiate(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Accept the opponent's terms, refusing any lock mismatch.

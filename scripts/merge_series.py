@@ -113,7 +113,7 @@ def main() -> None:
         print(f"\n{alarm}")
     result = result_payload(
         game_uid=ids[1], game_id=ids[0], links=links, timezone=args.timezone,
-        group_ids=[us, args.opponent_group_id], sub_games=rows,
+        group_ids=sorted([us, args.opponent_group_id]), sub_games=rows,
         tie_score=config.contract.scoring.tie_score,
         games_played={us: args.games_played + (1 if args.counted else 0),
                       args.opponent_group_id: inclusive_games(
